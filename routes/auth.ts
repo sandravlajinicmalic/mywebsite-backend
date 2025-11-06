@@ -1,28 +1,45 @@
-import express from 'express'
+import express, { type Request, type Response, type NextFunction } from 'express'
 import { supabase } from '../config/supabase.js'
 import jwt from 'jsonwebtoken'
 
 const router = express.Router()
 
+interface LoginRequestBody {
+  email: string
+  nickname: string
+}
+
+interface User {
+  id: string
+  email: string
+  nickname: string
+}
+
+interface JwtPayload {
+  userId: string
+  email: string
+}
+
 // Login/Register endpoint
-router.post('/login', async (req, res, next) => {
+router.post('/login', async (req: Request<{}, {}, LoginRequestBody>, res: Response, next: NextFunction) => {
   try {
     const { email, nickname } = req.body
 
     if (!email || !nickname) {
-      return res.status(400).json({ 
+      res.status(400).json({ 
         error: 'Email i nickname su obavezni' 
       })
+      return
     }
 
     // Provjeri da li korisnik već postoji
-    const { data: existingUser, error: checkError } = await supabase
+    const { data: existingUser } = await supabase
       .from('users')
       .select('*')
       .eq('email', email)
       .single()
 
-    let user
+    let user: User
 
     if (existingUser) {
       // Ažuriraj nickname ako je promijenjen
@@ -34,7 +51,7 @@ router.post('/login', async (req, res, next) => {
         .single()
 
       if (updateError) throw updateError
-      user = updatedUser
+      user = updatedUser as User
     } else {
       // Kreiraj novog korisnika
       const { data: newUser, error: insertError } = await supabase
@@ -44,7 +61,7 @@ router.post('/login', async (req, res, next) => {
         .single()
 
       if (insertError) throw insertError
-      user = newUser
+      user = newUser as User
     }
 
     // Generiši JWT token
@@ -69,18 +86,19 @@ router.post('/login', async (req, res, next) => {
 })
 
 // Verify token endpoint
-router.get('/verify', async (req, res, next) => {
+router.get('/verify', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const token = req.headers.authorization?.replace('Bearer ', '')
 
     if (!token) {
-      return res.status(401).json({ error: 'Token nije pronađen' })
+      res.status(401).json({ error: 'Token nije pronađen' })
+      return
     }
 
     const decoded = jwt.verify(
       token,
       process.env.JWT_SECRET || 'your-secret-key-change-in-production'
-    )
+    ) as JwtPayload
 
     // Dohvati korisnika iz baze
     const { data: user, error } = await supabase
@@ -90,13 +108,15 @@ router.get('/verify', async (req, res, next) => {
       .single()
 
     if (error || !user) {
-      return res.status(401).json({ error: 'Korisnik nije pronađen' })
+      res.status(401).json({ error: 'Korisnik nije pronađen' })
+      return
     }
 
     res.json({ success: true, user })
   } catch (error) {
-    if (error.name === 'JsonWebTokenError') {
-      return res.status(401).json({ error: 'Nevažeći token' })
+    if (error instanceof Error && error.name === 'JsonWebTokenError') {
+      res.status(401).json({ error: 'Nevažeći token' })
+      return
     }
     next(error)
   }

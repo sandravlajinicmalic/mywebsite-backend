@@ -1,8 +1,8 @@
-import express from 'express'
+import express, { type Express, type Request, type Response } from 'express'
 import cors from 'cors'
 import dotenv from 'dotenv'
-import { createServer } from 'http'
-import { Server } from 'socket.io'
+import { createServer, type Server as HttpServer } from 'http'
+import { Server, type Socket } from 'socket.io'
 import authRoutes from './routes/auth.js'
 import contactRoutes from './routes/contact.js'
 import { errorHandler } from './middleware/errorHandler.js'
@@ -10,8 +10,8 @@ import { errorHandler } from './middleware/errorHandler.js'
 // Load environment variables
 dotenv.config()
 
-const app = express()
-const httpServer = createServer(app)
+const app: Express = express()
+const httpServer: HttpServer = createServer(app)
 const io = new Server(httpServer, {
   cors: {
     origin: process.env.FRONTEND_URL || 'http://localhost:5173',
@@ -28,7 +28,7 @@ app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
 
 // Health check endpoint
-app.get('/health', (req, res) => {
+app.get('/health', (_req: Request, res: Response) => {
   res.json({ status: 'ok', message: 'Server is running' })
 })
 
@@ -37,7 +37,7 @@ app.use('/api/auth', authRoutes)
 app.use('/api/contact', contactRoutes)
 
 // Socket.io connection handling
-io.on('connection', (socket) => {
+io.on('connection', (socket: Socket) => {
   console.log('User connected:', socket.id)
 
   socket.on('disconnect', () => {
@@ -45,7 +45,7 @@ io.on('connection', (socket) => {
   })
 
   // Example: Handle custom events here
-  socket.on('message', (data) => {
+  socket.on('message', (data: unknown) => {
     console.log('Message received:', data)
     // Broadcast to all clients
     io.emit('message', data)

@@ -1,25 +1,34 @@
-import express from 'express'
+import express, { type Request, type Response, type NextFunction } from 'express'
 import { supabase } from '../config/supabase.js'
 
 const router = express.Router()
 
+interface ContactRequestBody {
+  name: string
+  email: string
+  message: string
+  subject?: string
+}
+
 // Submit contact form
-router.post('/submit', async (req, res, next) => {
+router.post('/submit', async (req: Request<{}, {}, ContactRequestBody>, res: Response, next: NextFunction) => {
   try {
     const { name, email, message, subject } = req.body
 
     if (!name || !email || !message) {
-      return res.status(400).json({ 
+      res.status(400).json({ 
         error: 'Ime, email i poruka su obavezni' 
       })
+      return
     }
 
     // Validacija email formata
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     if (!emailRegex.test(email)) {
-      return res.status(400).json({ 
+      res.status(400).json({ 
         error: 'Nevažeći format email adrese' 
       })
+      return
     }
 
     // Spremi poruku u bazu
@@ -53,7 +62,7 @@ router.post('/submit', async (req, res, next) => {
 })
 
 // Get all contact messages (za admin panel, opcionalno)
-router.get('/messages', async (req, res, next) => {
+router.get('/messages', async (_req: Request, res: Response, next: NextFunction) => {
   try {
     // TODO: Dodati autentifikaciju za admin pristup
     const { data, error } = await supabase
