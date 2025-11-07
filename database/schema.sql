@@ -38,10 +38,20 @@ CREATE TABLE IF NOT EXISTS cat_logs (
   timestamp TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Wheel Spins tabela
+CREATE TABLE IF NOT EXISTS wheel_spins (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  reward TEXT NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- Index za brže pretraživanje
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 CREATE INDEX IF NOT EXISTS idx_contact_messages_created_at ON contact_messages(created_at);
 CREATE INDEX IF NOT EXISTS idx_cat_logs_timestamp ON cat_logs(timestamp DESC);
+CREATE INDEX IF NOT EXISTS idx_wheel_spins_user_id ON wheel_spins(user_id);
+CREATE INDEX IF NOT EXISTS idx_wheel_spins_created_at ON wheel_spins(created_at DESC);
 
 -- RLS (Row Level Security) policies - opcionalno, za dodatnu sigurnost
 -- ALTER TABLE users ENABLE ROW LEVEL SECURITY;

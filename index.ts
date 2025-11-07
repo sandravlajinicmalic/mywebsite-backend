@@ -7,6 +7,7 @@ import authRoutes from './routes/auth.js'
 import contactRoutes from './routes/contact.js'
 import catRoutes, { getCurrentCatState, addLog } from './routes/cat.js'
 import chatRoutes from './routes/chat.js'
+import wheelRoutes from './routes/wheel.js'
 import { errorHandler } from './middleware/errorHandler.js'
 import { supabase } from './config/supabase.js'
 
@@ -40,6 +41,7 @@ app.use('/api/auth', authRoutes)
 app.use('/api/contact', contactRoutes)
 app.use('/api/cat', catRoutes)
 app.use('/api/chat', chatRoutes)
+app.use('/api/wheel', wheelRoutes)
 
 // Cat State Machine - runs 24/7
 let stateMachineInterval: NodeJS.Timeout | null = null
