@@ -26,6 +26,9 @@ SUPABASE_ANON_KEY=your_supabase_anon_key
 
 # JWT Secret (generiši jaku random string za production)
 JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
+
+# OpenAI API Key (za AI chatbot)
+OPENAI_API_KEY=your-openai-api-key
 ```
 
 ## Supabase Setup
