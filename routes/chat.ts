@@ -20,7 +20,10 @@ VAŽNO:
 - Budi prijateljski, informativan i entuzijastičan kada pričaš o mačkama.
 - Odgovaraj na srpskom jeziku.
 - Koristi emoji-je vezane za mačke (😸, 🐱, 😺, 🐾) kada je prikladno.
-- Budi konkretan i informativan u svojim odgovorima.`
+- Budi konkretan i informativan u svojim odgovorima.
+- NIKADA ne generiši kod, slike, fajlove, ili bilo šta što nije običan tekst.
+- Tvoji odgovori moraju biti SAMO tekstualni - bez kod blokova, bez markdown formata za kod, bez slika, bez fajlova.
+- Ako te neko pita da generišeš kod, sliku, ili bilo šta što nije tekst, ljubazno odgovori da možeš da daješ samo tekstualne odgovore o mačkama.`
 
 interface ChatMessage {
   role: 'user' | 'assistant' | 'system'
@@ -41,6 +44,58 @@ function isTextOnly(message: string): boolean {
   // Check if message contains only allowed characters
   const sanitized = sanitizeMessage(message)
   return sanitized === message
+}
+
+// Helper function to check if message is requesting code, images, or non-text content
+function isRequestingNonText(message: string): boolean {
+  const lowerMessage = message.toLowerCase()
+  
+  const nonTextKeywords = [
+    // Code generation
+    'generiši kod', 'generisi kod', 'napiši kod', 'napisi kod', 'napravi kod', 'kreiraj kod',
+    'write code', 'generate code', 'create code', 'make code', 'code example',
+    'javascript', 'python', 'html', 'css', 'react', 'vue', 'angular', 'node', 'sql',
+    'function', 'class', 'import', 'export', 'const', 'let', 'var',
+    // Image generation
+    'generiši sliku', 'generisi sliku', 'napravi sliku', 'kreiraj sliku', 'nacrtaj sliku',
+    'generate image', 'create image', 'make image', 'draw image', 'picture',
+    'dall-e', 'midjourney', 'stable diffusion',
+    // File generation
+    'generiši fajl', 'generisi fajl', 'napravi fajl', 'kreiraj fajl',
+    'generate file', 'create file', 'make file',
+    // Other non-text requests
+    'json', 'xml', 'yaml', 'markdown', '```', 'code block'
+  ]
+  
+  return nonTextKeywords.some(keyword => lowerMessage.includes(keyword))
+}
+
+// Helper function to sanitize response - remove code blocks and ensure text only
+function sanitizeResponse(response: string): string {
+  let sanitized = response
+  
+  // Remove code blocks (```code``` or ```language\ncode\n```)
+  sanitized = sanitized.replace(/```[\s\S]*?```/g, '')
+  
+  // Remove inline code (`code`)
+  sanitized = sanitized.replace(/`[^`]+`/g, '')
+  
+  // Remove markdown links [text](url)
+  sanitized = sanitized.replace(/\[([^\]]+)\]\([^\)]+\)/g, '$1')
+  
+  // Remove markdown bold/italic
+  sanitized = sanitized.replace(/\*\*([^*]+)\*\*/g, '$1')
+  sanitized = sanitized.replace(/\*([^*]+)\*/g, '$1')
+  sanitized = sanitized.replace(/__([^_]+)__/g, '$1')
+  sanitized = sanitized.replace(/_([^_]+)_/g, '$1')
+  
+  // Remove any remaining special formatting
+  sanitized = sanitized.replace(/[#*_`\[\](){}]/g, '')
+  
+  // Clean up multiple spaces
+  sanitized = sanitized.replace(/\s+/g, ' ').trim()
+  
+  return sanitized
 }
 
 // Helper function to check if message is about cats
@@ -87,6 +142,16 @@ router.post('/message', async (req: Request, res: Response) => {
       res.status(400).json({ 
         error: 'Poruka mora da sadrži samo tekstualne karaktere',
         response: 'Izvinjavam se, poruka mora da sadrži samo tekstualne karaktere (slova, brojevi, razmaci i osnovna interpunkcija). 😸'
+      })
+      return
+    }
+
+    // Check if message is requesting code, images, or non-text content
+    if (isRequestingNonText(finalMessage)) {
+      console.log('[CHAT] Message is requesting non-text content (code/images/files)')
+      res.json({
+        response: 'Izvinjavam se, mogu da dajem samo tekstualne odgovore o mačkama. Ne mogu da generišem kod, slike, fajlove ili bilo šta što nije običan tekst. Postavi mi pitanje o mačkama! 😸',
+        isAboutCats: false
       })
       return
     }
@@ -141,9 +206,25 @@ router.post('/message', async (req: Request, res: Response) => {
         max_tokens: 500,
       })
 
-      const assistantResponse = completion.choices[0]?.message?.content || 'Izvinjavam se, nisam mogao da generišem odgovor. Pokušaj ponovo! 😸'
+      let assistantResponse = completion.choices[0]?.message?.content || 'Izvinjavam se, nisam mogao da generišem odgovor. Pokušaj ponovo! 😸'
       
       console.log('[CHAT] OpenAI response received:', assistantResponse.substring(0, 50) + '...')
+
+      // Sanitize response - remove code blocks and ensure text only
+      const sanitizedResponse = sanitizeResponse(assistantResponse)
+      
+      // If response was heavily modified (contains code blocks), use fallback
+      if (sanitizedResponse.length < assistantResponse.length * 0.5 && assistantResponse.includes('```')) {
+        console.log('[CHAT] Response contained code blocks, using fallback')
+        assistantResponse = 'Izvinjavam se, mogu da dajem samo tekstualne odgovore o mačkama. Postavi mi pitanje o mačkama! 😸'
+      } else {
+        assistantResponse = sanitizedResponse || assistantResponse
+      }
+
+      // Final check - ensure response is not empty
+      if (!assistantResponse || assistantResponse.trim().length === 0) {
+        assistantResponse = 'Izvinjavam se, nisam mogao da generišem odgovor. Pokušaj ponovo! 😸'
+      }
 
       // Add assistant response to history
       history.push({ role: 'assistant', content: assistantResponse })
