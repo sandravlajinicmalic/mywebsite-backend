@@ -59,7 +59,7 @@ async function initializeCatStateMachine() {
         .insert([
           {
             id: 1,
-            current: 'ziva',
+            current: 'playing',
             is_resting: false,
             rest_end_time: null,
             rested_by: null,
@@ -76,7 +76,7 @@ async function initializeCatStateMachine() {
       }
 
       console.log('Cat state created:', newState)
-      await addLog('Sistem: Mačka je inicijalizovana')
+      await addLog('System: Cat initialized')
     } else if (selectError) {
       console.error('Error checking cat state:', selectError)
       throw selectError
@@ -104,7 +104,7 @@ async function initializeCatStateMachine() {
           await supabase
             .from('global_cat_state')
             .update({
-              current: 'ziva',
+              current: 'playing',
               is_resting: false,
               rest_end_time: null,
               rested_by: null,
@@ -113,16 +113,17 @@ async function initializeCatStateMachine() {
             })
             .eq('id', 1)
 
-          await addLog('Sistem: Mačka se probudila')
-          io.emit('cat-state-changed', { state: 'ziva' })
+          await addLog('System: Cat woke up')
+          io.emit('cat-rest-ended')
+          io.emit('cat-state-changed', { state: 'playing' })
         }
         // If REST is still active, don't change state
         return
       }
 
       // Change state every 10 seconds (only if not resting)
-      // Exclude 'mrtva' state (only for REST)
-      const states: Array<'ziva' | 'igra_se' | 'dosadno' | 'angry'> = ['ziva', 'igra_se', 'dosadno', 'angry']
+      // Exclude 'sleeping' state (only for REST)
+      const states: Array<'playing' | 'zen' | 'happy' | 'tired' | 'angry'> = ['playing', 'zen', 'happy', 'tired', 'angry']
       
       // Filter out current state to ensure it changes
       const availableStates = states.filter(s => s !== state.current)
@@ -138,7 +139,7 @@ async function initializeCatStateMachine() {
         })
         .eq('id', 1)
 
-      await addLog(`Sistem: Mačka prelazi u stanje '${newState}'`)
+      await addLog(`System: Cat transitioning to state '${newState}'`)
       io.emit('cat-state-changed', { state: newState })
     } catch (error) {
       console.error('State machine error:', error)
@@ -188,18 +189,18 @@ io.on('connection', (socket: Socket) => {
 
       // Check if already resting
       if (state.is_resting) {
-        socket.emit('rest-denied', { message: 'REST je već aktivan' })
-        await addLog(`${data.userName}: Pokušao aktivirati REST (ODBIJENO - već aktivan)`)
+        socket.emit('rest-denied', { message: 'Cat is already sleeping' })
+        await addLog(`${data.userName}: Attempted to put cat to sleep (DENIED - already sleeping)`)
         return
       }
 
       // Use transaction-like approach with SELECT FOR UPDATE
-      const restEndTime = new Date(Date.now() + 5 * 60 * 1000) // 5 minutes from now
+      const restEndTime = new Date(Date.now() + 1 * 60 * 1000) // 1 minute from now
 
       const { error } = await supabase
         .from('global_cat_state')
         .update({
-          current: 'mrtva',
+          current: 'sleeping',
           is_resting: true,
           rest_end_time: restEndTime.toISOString(),
           rested_by: data.userId,
@@ -211,21 +212,21 @@ io.on('connection', (socket: Socket) => {
 
       if (error) {
         // Race condition - someone else activated REST
-        socket.emit('rest-denied', { message: 'Neko drugi je već aktivirao REST!' })
-        await addLog(`${data.userName}: Pokušao aktivirati REST (ODBIJENO - race condition)`)
+        socket.emit('rest-denied', { message: 'Someone else has already put the cat to sleep!' })
+        await addLog(`${data.userName}: Attempted to put cat to sleep (DENIED - race condition)`)
         return
       }
 
       // Success - broadcast to all clients
-      await addLog(`${data.userName}: Aktivirao REST`)
+      await addLog(`${data.userName}: Put cat to sleep`)
       io.emit('cat-resting', {
         restUntil: restEndTime.toISOString(),
         userName: data.userName
       })
-      io.emit('cat-state-changed', { state: 'mrtva' })
+      io.emit('cat-state-changed', { state: 'sleeping' })
     } catch (error) {
       console.error('Activate REST error:', error)
-      socket.emit('rest-denied', { message: 'Greška pri aktivaciji REST-a' })
+      socket.emit('rest-denied', { message: 'Error putting cat to sleep' })
     }
   })
 

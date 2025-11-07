@@ -18,9 +18,11 @@ CREATE TABLE IF NOT EXISTS contact_messages (
 );
 
 -- Global Cat State tabela (samo jedna redica sa id=1)
+-- Valid states: 'playing', 'zen', 'sleeping', 'happy', 'tired', 'angry'
+-- 'sleeping' is only used when REST is active
 CREATE TABLE IF NOT EXISTS global_cat_state (
   id INTEGER PRIMARY KEY DEFAULT 1 CHECK (id = 1),
-  current TEXT NOT NULL DEFAULT 'ziva',
+  current TEXT NOT NULL DEFAULT 'playing',
   is_resting BOOLEAN NOT NULL DEFAULT false,
   rest_end_time TIMESTAMP WITH TIME ZONE,
   rested_by UUID REFERENCES users(id),

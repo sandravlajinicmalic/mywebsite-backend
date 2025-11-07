@@ -5,7 +5,7 @@ import { io } from '../index.js'
 const router = express.Router()
 
 // Cat states
-export type CatState = 'ziva' | 'mrtva' | 'igra_se' | 'dosadno' | 'angry'
+export type CatState = 'playing' | 'zen' | 'sleeping' | 'happy' | 'tired' | 'angry'
 
 interface CatStateData {
   current: CatState
@@ -100,7 +100,7 @@ router.post('/init', async (_req: Request, res: Response) => {
       .insert([
         {
           id: 1,
-          current: 'ziva',
+          current: 'playing',
           is_resting: false,
           rest_end_time: null,
           rested_by: null,
@@ -116,7 +116,7 @@ router.post('/init', async (_req: Request, res: Response) => {
       return
     }
 
-    await addLog('Sistem: Mačka je inicijalizovana')
+    await addLog('System: Cat initialized')
 
     res.json({
       success: true,
