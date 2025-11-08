@@ -45,6 +45,7 @@ app.use('/api/wheel', wheelRoutes)
 
 // Cat State Machine - runs 24/7
 let stateMachineInterval: NodeJS.Timeout | null = null
+let cleanupInterval: NodeJS.Timeout | null = null
 
 async function initializeCatStateMachine() {
   try {
@@ -149,6 +150,40 @@ async function initializeCatStateMachine() {
       console.error('State machine error:', error)
     }
   }, 10000) // Check every 10 seconds
+}
+
+// Cleanup old cat logs (older than 2 hours)
+async function cleanupOldLogs(): Promise<void> {
+  try {
+    const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000) // 2 hours ago
+    
+    const { error } = await supabase
+      .from('cat_logs')
+      .delete()
+      .lt('timestamp', twoHoursAgo.toISOString())
+
+    if (error) {
+      console.error('Error cleaning up old logs:', error)
+      return
+    }
+
+    console.log(`Cleaned up old cat logs (older than 2 hours) at ${new Date().toISOString()}`)
+  } catch (error) {
+    console.error('Failed to cleanup old logs:', error)
+  }
+}
+
+// Initialize cleanup job - runs every hour
+function initializeCleanupJob(): void {
+  // Run cleanup immediately on startup
+  cleanupOldLogs()
+  
+  // Then run every hour
+  cleanupInterval = setInterval(() => {
+    cleanupOldLogs()
+  }, 60 * 60 * 1000) // Every hour (60 minutes * 60 seconds * 1000 ms)
+  
+  console.log('Cat logs cleanup job initialized (runs every hour)')
 }
 
 // Socket.io connection handling
@@ -274,6 +309,30 @@ httpServer.listen(PORT, async () => {
   } catch (error) {
     console.error('Failed to initialize cat state machine:', error)
   }
+  
+  // Initialize cleanup job
+  initializeCleanupJob()
+})
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+  console.log('SIGTERM received, shutting down gracefully...')
+  if (stateMachineInterval) clearInterval(stateMachineInterval)
+  if (cleanupInterval) clearInterval(cleanupInterval)
+  httpServer.close(() => {
+    console.log('Server closed')
+    process.exit(0)
+  })
+})
+
+process.on('SIGINT', () => {
+  console.log('SIGINT received, shutting down gracefully...')
+  if (stateMachineInterval) clearInterval(stateMachineInterval)
+  if (cleanupInterval) clearInterval(cleanupInterval)
+  httpServer.close(() => {
+    console.log('Server closed')
+    process.exit(0)
+  })
 })
 
 export { io }
