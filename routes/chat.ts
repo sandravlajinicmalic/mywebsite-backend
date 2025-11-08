@@ -12,7 +12,10 @@ const openai = new OpenAI({
 })
 
 // System prompt that restricts the chatbot to only talk about cats
-const CAT_SYSTEM_PROMPT = `Ti si prijateljski AI asistent koji razgovara SAMO o mačkama. 
+// This will be dynamically generated based on user's language
+function getSystemPrompt(language: string = 'en'): string {
+  if (language === 'sr') {
+    return `Ti si prijateljski AI asistent koji razgovara SAMO o mačkama. 
 Tvoja uloga je da pomažeš ljudima da saznaju više o mačkama, njihovom ponašanju, zdravlju, negi, rasama, ishrani, i svemu što se tiče mačaka.
 
 VAŽNO:
@@ -24,6 +27,21 @@ VAŽNO:
 - NIKADA ne generiši kod, slike, fajlove, ili bilo šta što nije običan tekst.
 - Tvoji odgovori moraju biti SAMO tekstualni - bez kod blokova, bez markdown formata za kod, bez slika, bez fajlova.
 - Ako te neko pita da generišeš kod, sliku, ili bilo šta što nije tekst, ljubazno odgovori da možeš da daješ samo tekstualne odgovore o mačkama.`
+  } else {
+    return `You are a friendly AI assistant that talks ONLY about cats. 
+Your role is to help people learn more about cats, their behavior, health, grooming, breeds, nutrition, and everything related to cats.
+
+IMPORTANT:
+- If someone asks you about something that is NOT related to cats, politely respond that you can only talk about cats and redirect the conversation to the topic of cats.
+- Be friendly, informative and enthusiastic when talking about cats.
+- Respond in English.
+- Use cat-related emojis (😸, 🐱, 😺, 🐾) when appropriate.
+- Be specific and informative in your responses.
+- NEVER generate code, images, files, or anything that is not plain text.
+- Your responses must be ONLY textual - no code blocks, no markdown formats for code, no images, no files.
+- If someone asks you to generate code, an image, or anything that is not text, politely respond that you can only provide text responses about cats.`
+  }
+}
 
 interface ChatMessage {
   role: 'user' | 'assistant' | 'system'
@@ -116,9 +134,9 @@ function isAboutCats(message: string): boolean {
 // Chat endpoint
 router.post('/message', async (req: Request, res: Response) => {
   try {
-    const { message, sessionId } = req.body
+    const { message, sessionId, language } = req.body
 
-    console.log('[CHAT] Received message:', { message, sessionId })
+    console.log('[CHAT] Received message:', { message, sessionId, language })
 
     if (!message || typeof message !== 'string') {
       console.log('[CHAT] Invalid message format')
@@ -188,8 +206,11 @@ router.post('/message', async (req: Request, res: Response) => {
     try {
       // Prepare messages for OpenAI API
       // Always include system prompt first, then conversation history
+      // Use language from request or default to English
+      const userLanguage = language || 'en'
+      const systemPrompt = getSystemPrompt(userLanguage)
       const messages: ChatMessage[] = [
-        { role: 'system', content: CAT_SYSTEM_PROMPT }
+        { role: 'system', content: systemPrompt }
       ]
       
       // Include last 10 messages for context (user + assistant pairs)
