@@ -22,12 +22,12 @@ router.post('/spin', authenticateToken, async (req: AuthRequest, res: Response, 
     const userId = req.user?.userId
 
     if (!userId) {
-      res.status(401).json({ error: 'Korisnik nije autentifikovan' })
+      res.status(401).json({ error: 'User is not authenticated' })
       return
     }
 
     if (!reward || typeof reward !== 'string') {
-      res.status(400).json({ error: 'Nagrada je obavezna' })
+      res.status(400).json({ error: 'Reward is required' })
       return
     }
 
@@ -55,7 +55,7 @@ router.post('/spin', authenticateToken, async (req: AuthRequest, res: Response, 
       if (remainingMs > 0) {
         const remainingSeconds = Math.ceil(remainingMs / 1000)
         res.status(429).json({ 
-          error: 'Morate sačekati pre sljedećeg spina',
+          error: 'You must wait before the next spin',
           cooldownSeconds: remainingSeconds,
           canSpin: false
         })
@@ -94,7 +94,7 @@ router.get('/history', authenticateToken, async (req: AuthRequest, res: Response
     const userId = req.user?.userId
 
     if (!userId) {
-      res.status(401).json({ error: 'Korisnik nije autentifikovan' })
+      res.status(401).json({ error: 'User is not authenticated' })
       return
     }
 
@@ -122,7 +122,7 @@ router.get('/can-spin', authenticateToken, async (req: AuthRequest, res: Respons
     const userId = req.user?.userId
 
     if (!userId) {
-      res.status(401).json({ error: 'Korisnik nije autentifikovan' })
+      res.status(401).json({ error: 'User is not authenticated' })
       return
     }
 

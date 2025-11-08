@@ -16,7 +16,7 @@ export const errorHandler = (
   // Supabase errors
   if (err.code && err.code.startsWith('PGRST')) {
     res.status(400).json({
-      error: 'Greška u bazi podataka',
+      error: 'Database error',
       message: err.message
     })
     return
@@ -25,21 +25,21 @@ export const errorHandler = (
   // JWT errors
   if (err.name === 'JsonWebTokenError') {
     res.status(401).json({
-      error: 'Nevažeći token'
+      error: 'Invalid token'
     })
     return
   }
 
   if (err.name === 'TokenExpiredError') {
     res.status(401).json({
-      error: 'Token je istekao'
+      error: 'Token has expired'
     })
     return
   }
 
   // Default error
   res.status(err.status || 500).json({
-    error: err.message || 'Interna greška servera',
+    error: err.message || 'Internal server error',
     ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
   })
 }

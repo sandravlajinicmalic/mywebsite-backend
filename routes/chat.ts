@@ -140,8 +140,8 @@ router.post('/message', async (req: Request, res: Response) => {
     if (!finalMessage || finalMessage.length === 0) {
       console.log('[CHAT] Message is empty after sanitization')
       res.status(400).json({ 
-        error: 'Poruka mora da sadrži samo tekstualne karaktere',
-        response: 'Izvinjavam se, poruka mora da sadrži samo tekstualne karaktere (slova, brojevi, razmaci i osnovna interpunkcija). 😸'
+        error: 'Message must contain only text characters',
+        response: 'Sorry, message must contain only text characters (letters, numbers, spaces and basic punctuation). 😸'
       })
       return
     }
@@ -150,7 +150,7 @@ router.post('/message', async (req: Request, res: Response) => {
     if (isRequestingNonText(finalMessage)) {
       console.log('[CHAT] Message is requesting non-text content (code/images/files)')
       res.json({
-        response: 'Izvinjavam se, mogu da dajem samo tekstualne odgovore o mačkama. Ne mogu da generišem kod, slike, fajlove ili bilo šta što nije običan tekst. Postavi mi pitanje o mačkama! 😸',
+        response: 'Sorry, I can only provide text responses about cats. I cannot generate code, images, files or anything that is not plain text. Ask me a question about cats! 😸',
         isAboutCats: false
       })
       return
@@ -160,7 +160,7 @@ router.post('/message', async (req: Request, res: Response) => {
     if (!isAboutCats(finalMessage)) {
       console.log('[CHAT] Message is not about cats')
       res.json({
-        response: 'Postavi mi pitanje o mačkama, njihovom ponašanju, zdravlju, negi ili bilo čemu što se tiče mačaka.',
+        response: 'Ask me a question about cats, their behavior, health, grooming or anything related to cats.',
         isAboutCats: false
       })
       return
@@ -176,7 +176,7 @@ router.post('/message', async (req: Request, res: Response) => {
     if (!process.env.OPENAI_API_KEY) {
       console.log('[CHAT] OpenAI API key not configured, using fallback response')
       res.json({
-        response: 'Izvinjavam se, AI servis nije konfigurisan. Molimo dodajte OPENAI_API_KEY u .env fajl. 😸',
+        response: 'Sorry, AI service is not configured. Please add OPENAI_API_KEY to the .env file. 😸',
         isAboutCats: true
       })
       return
@@ -206,7 +206,7 @@ router.post('/message', async (req: Request, res: Response) => {
         max_tokens: 500,
       })
 
-      let assistantResponse = completion.choices[0]?.message?.content || 'Izvinjavam se, nisam mogao da generišem odgovor. Pokušaj ponovo! 😸'
+      let assistantResponse = completion.choices[0]?.message?.content || 'Sorry, I could not generate a response. Please try again! 😸'
       
       console.log('[CHAT] OpenAI response received:', assistantResponse.substring(0, 50) + '...')
 
@@ -216,14 +216,14 @@ router.post('/message', async (req: Request, res: Response) => {
       // If response was heavily modified (contains code blocks), use fallback
       if (sanitizedResponse.length < assistantResponse.length * 0.5 && assistantResponse.includes('```')) {
         console.log('[CHAT] Response contained code blocks, using fallback')
-        assistantResponse = 'Izvinjavam se, mogu da dajem samo tekstualne odgovore o mačkama. Postavi mi pitanje o mačkama! 😸'
+        assistantResponse = 'Sorry, I can only provide text responses about cats. Ask me a question about cats! 😸'
       } else {
         assistantResponse = sanitizedResponse || assistantResponse
       }
 
       // Final check - ensure response is not empty
       if (!assistantResponse || assistantResponse.trim().length === 0) {
-        assistantResponse = 'Izvinjavam se, nisam mogao da generišem odgovor. Pokušaj ponovo! 😸'
+        assistantResponse = 'Sorry, I could not generate a response. Please try again! 😸'
       }
 
       // Add assistant response to history
@@ -244,7 +244,7 @@ router.post('/message', async (req: Request, res: Response) => {
       console.error('[CHAT] OpenAI API error:', error)
       
       // Fallback response if API fails
-      const fallbackResponse = 'Izvinjavam se, došlo je do greške pri komunikaciji sa AI servisom. Pokušaj ponovo za nekoliko trenutaka! 😸'
+      const fallbackResponse = 'Sorry, an error occurred while communicating with the AI service. Please try again in a few moments! 😸'
       
       res.json({
         response: fallbackResponse,
@@ -254,8 +254,8 @@ router.post('/message', async (req: Request, res: Response) => {
   } catch (error) {
     console.error('[CHAT] Error:', error)
     res.status(500).json({ 
-      error: 'Greška pri komunikaciji sa chatbotom',
-      response: 'Izvinjavam se, došlo je do greške. Pokušaj ponovo! 😸'
+      error: 'Error communicating with chatbot',
+      response: 'Sorry, an error occurred. Please try again! 😸'
     })
   }
 })
@@ -266,9 +266,9 @@ router.post('/clear', (req: Request, res: Response) => {
     const { sessionId } = req.body
     const session = sessionId || 'default'
     conversationHistory.delete(session)
-    res.json({ success: true, message: 'Istorija razgovora obrisana' })
+    res.json({ success: true, message: 'Conversation history cleared' })
   } catch (error) {
-    res.status(500).json({ error: 'Greška pri brisanju istorije' })
+    res.status(500).json({ error: 'Error clearing history' })
   }
 })
 

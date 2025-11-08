@@ -17,7 +17,7 @@ router.post('/submit', async (req: Request<{}, {}, ContactRequestBody>, res: Res
 
     if (!name || !email || !message) {
       res.status(400).json({ 
-        error: 'Ime, email i poruka su obavezni' 
+        error: 'Name, email and message are required' 
       })
       return
     }
@@ -26,7 +26,7 @@ router.post('/submit', async (req: Request<{}, {}, ContactRequestBody>, res: Res
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     if (!emailRegex.test(email)) {
       res.status(400).json({ 
-        error: 'Nevažeći format email adrese' 
+        error: 'Invalid email format' 
       })
       return
     }
@@ -38,7 +38,7 @@ router.post('/submit', async (req: Request<{}, {}, ContactRequestBody>, res: Res
         {
           name,
           email,
-          subject: subject || 'Nema naslova',
+          subject: subject || 'No subject',
           message,
           created_at: new Date().toISOString()
         }
@@ -53,7 +53,7 @@ router.post('/submit', async (req: Request<{}, {}, ContactRequestBody>, res: Res
 
     res.json({
       success: true,
-      message: 'Poruka je uspješno poslana!',
+      message: 'Message sent successfully!',
       data
     })
   } catch (error) {

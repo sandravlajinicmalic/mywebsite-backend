@@ -27,7 +27,7 @@ router.post('/login', async (req: Request<{}, {}, LoginRequestBody>, res: Respon
 
     if (!email || !nickname) {
       res.status(400).json({ 
-        error: 'Email i nickname su obavezni' 
+        error: 'Email and nickname are required' 
       })
       return
     }
@@ -91,7 +91,7 @@ router.get('/verify', async (req: Request, res: Response, next: NextFunction) =>
     const token = req.headers.authorization?.replace('Bearer ', '')
 
     if (!token) {
-      res.status(401).json({ error: 'Token nije pronađen' })
+      res.status(401).json({ error: 'Token not found' })
       return
     }
 
@@ -108,14 +108,14 @@ router.get('/verify', async (req: Request, res: Response, next: NextFunction) =>
       .single()
 
     if (error || !user) {
-      res.status(401).json({ error: 'Korisnik nije pronađen' })
+      res.status(401).json({ error: 'User not found' })
       return
     }
 
     res.json({ success: true, user })
   } catch (error) {
     if (error instanceof Error && error.name === 'JsonWebTokenError') {
-      res.status(401).json({ error: 'Nevažeći token' })
+      res.status(401).json({ error: 'Invalid token' })
       return
     }
     next(error)

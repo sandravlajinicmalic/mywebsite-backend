@@ -38,7 +38,7 @@ async function addLog(action: string, userName?: string): Promise<void> {
     .insert([
       {
         action,
-        user_name: userName || 'Sistem',
+        user_name: userName || 'System',
         timestamp: new Date().toISOString()
       }
     ])
