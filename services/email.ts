@@ -120,6 +120,30 @@ class EmailService {
       // Samo loguj grešku
     }
   }
+
+  /**
+   * Šalje delete account email korisniku čiji je profil obrisan
+   */
+  async sendDeleteAccountEmail(email: string, nickname: string): Promise<void> {
+    try {
+      // Dohvati template iz Supabase Storage
+      const html = await this.getTemplateFromStorage('delete-account.html', {
+        nickname,
+        email,
+      })
+
+      // Pošalji email
+      await this.sendEmail({
+        to: email,
+        subject: 'Account Deleted - MyWebsite',
+        html,
+      })
+    } catch (error) {
+      console.error('Error sending delete account email:', error)
+      // Ne baci error - ne želimo da delete ne uspije zbog email problema
+      // Samo loguj grešku
+    }
+  }
 }
 
 export const emailService = new EmailService()

@@ -2,6 +2,7 @@ import express, { type Request, type Response, type NextFunction } from 'express
 import { supabase } from '../config/supabase.js'
 import jwt from 'jsonwebtoken'
 import { emailService } from '../services/email.js'
+import { authenticateToken, type AuthRequest } from '../middleware/auth.js'
 
 const router = express.Router()
 
@@ -150,6 +151,55 @@ router.get('/verify', async (req: Request, res: Response, next: NextFunction) =>
       res.status(401).json({ error: 'Invalid token' })
       return
     }
+    next(error)
+  }
+})
+
+// Delete account endpoint
+router.delete('/delete', authenticateToken, async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    if (!req.user) {
+      res.status(401).json({ error: 'User not authenticated' })
+      return
+    }
+
+    const userId = req.user.userId
+
+    // Dohvati korisnika da dobijemo nickname za email
+    const { data: user, error: fetchError } = await supabase
+      .from('users')
+      .select('id, email, nickname')
+      .eq('id', userId)
+      .single()
+
+    if (fetchError || !user) {
+      res.status(404).json({ error: 'User not found' })
+      return
+    }
+
+    // Obriši korisnika iz baze
+    const { error: deleteError } = await supabase
+      .from('users')
+      .delete()
+      .eq('id', userId)
+
+    if (deleteError) {
+      console.error('Error deleting user:', deleteError)
+      res.status(500).json({ error: 'Failed to delete account' })
+      return
+    }
+
+    // Pošalji delete account email (asinhrono, ne blokira response)
+    emailService.sendDeleteAccountEmail(user.email, user.nickname).catch((error) => {
+      console.error('Failed to send delete account email:', error)
+      // Ne baci error - delete je uspješan čak i ako email ne uspije
+    })
+
+    res.json({
+      success: true,
+      message: 'Account deleted successfully'
+    })
+  } catch (error) {
     next(error)
   }
 })
