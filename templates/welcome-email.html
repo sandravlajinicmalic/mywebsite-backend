@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welcome to MyWebsite!</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        .container {
+            background-color: #ffffff;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        .header {
+            text-align: center;
+            color: #f472b6;
+            margin-bottom: 30px;
+        }
+        .content {
+            margin-bottom: 30px;
+        }
+        .button {
+            display: inline-block;
+            padding: 12px 30px;
+            background-color: #f472b6;
+            color: #ffffff;
+            text-decoration: none;
+            border-radius: 5px;
+            text-align: center;
+            margin: 20px 0;
+        }
+        .footer {
+            text-align: center;
+            color: #666;
+            font-size: 12px;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎉 Welcome to MyWebsite!</h1>
+        </div>
+        
+        <div class="content">
+            <p>Hi <strong>{{nickname}}</strong>,</p>
+            
+            <p>Thank you for joining MyWebsite! We're excited to have you on board.</p>
+            
+            <p>This is your first login, and we wanted to personally welcome you to our community.</p>
+            
+            <p>If you have any questions or need help, feel free to reach out to us anytime.</p>
+            
+            <p>Best regards,<br>
+            The MyWebsite Team</p>
+        </div>
+        
+        <div style="text-align: center;">
+            <a href="#" class="button">Visit MyWebsite</a>
+        </div>
+        
+        <div class="footer">
+            <p>This email was sent to {{email}}</p>
+            <p>&copy; 2024 MyWebsite. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html>
+

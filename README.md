@@ -6,6 +6,7 @@ Backend server za MyWebsite aplikaciju, izgrađen sa Node.js, Express, Supabase 
 
 ```bash
 npm install
+npm install nodemailer @types/nodemailer
 ```
 
 ## Konfiguracija
@@ -29,6 +30,14 @@ JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
 
 # OpenAI API Key (za AI chatbot)
 OPENAI_API_KEY=your-openai-api-key
+
+# Email Configuration (SMTP) - za slanje welcome emaila
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=your-email@gmail.com
+SMTP_PASSWORD=your-app-password
+SMTP_FROM=your-email@gmail.com
 ```
 
 ## Supabase Setup

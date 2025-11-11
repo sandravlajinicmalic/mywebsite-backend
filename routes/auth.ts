@@ -1,6 +1,7 @@
 import express, { type Request, type Response, type NextFunction } from 'express'
 import { supabase } from '../config/supabase.js'
 import jwt from 'jsonwebtoken'
+import { emailService } from '../services/email.js'
 
 const router = express.Router()
 
@@ -25,9 +26,34 @@ router.post('/login', async (req: Request<{}, {}, LoginRequestBody>, res: Respon
   try {
     const { email, nickname } = req.body
 
-    if (!email || !nickname) {
+    const errors: { email?: string; nickname?: string } = {}
+
+    // Validacija email formata
+    if (!email) {
+      errors.email = 'Email is required'
+    } else {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+      if (!emailRegex.test(email)) {
+        errors.email = 'Invalid email format'
+      }
+    }
+
+    // Validacija nickname - dozvoljeni su samo slova, brojevi, underscore i dash
+    if (!nickname) {
+      errors.nickname = 'Nickname is required'
+    } else {
+      // Nickname ne smije sadržavati specijalne znakove osim underscore i dash
+      const nicknameRegex = /^[a-zA-Z0-9_-]+$/
+      if (!nicknameRegex.test(nickname)) {
+        errors.nickname = 'Nickname can only contain letters, numbers, underscore (_) and dash (-)'
+      }
+    }
+
+    // Ako ima grešaka, vrati ih
+    if (Object.keys(errors).length > 0) {
       res.status(400).json({ 
-        error: 'Email and nickname are required' 
+        error: 'Validation failed',
+        errors 
       })
       return
     }
@@ -62,6 +88,12 @@ router.post('/login', async (req: Request<{}, {}, LoginRequestBody>, res: Respon
 
       if (insertError) throw insertError
       user = newUser as User
+
+      // Pošalji welcome email novom korisniku (asinhrono, ne blokira response)
+      emailService.sendWelcomeEmail(email, nickname).catch((error) => {
+        console.error('Failed to send welcome email:', error)
+        // Ne baci error - login je uspješan čak i ako email ne uspije
+      })
     }
 
     // Generiši JWT token
