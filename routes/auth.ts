@@ -29,7 +29,7 @@ router.post('/login', async (req: Request<{}, {}, LoginRequestBody>, res: Respon
 
     const errors: { email?: string; nickname?: string } = {}
 
-    // Validacija email formata
+    // Email format validation
     if (!email) {
       errors.email = 'Email is required'
     } else {
@@ -39,18 +39,18 @@ router.post('/login', async (req: Request<{}, {}, LoginRequestBody>, res: Respon
       }
     }
 
-    // Validacija nickname - dozvoljeni su samo slova, brojevi, underscore i dash
+    // Nickname validation - only letters, numbers, underscore and dash are allowed
     if (!nickname) {
       errors.nickname = 'Nickname is required'
     } else {
-      // Nickname ne smije sadržavati specijalne znakove osim underscore i dash
+      // Nickname must not contain special characters except underscore and dash
       const nicknameRegex = /^[a-zA-Z0-9_-]+$/
       if (!nicknameRegex.test(nickname)) {
         errors.nickname = 'Nickname can only contain letters, numbers, underscore (_) and dash (-)'
       }
     }
 
-    // Ako ima grešaka, vrati ih
+    // If there are errors, return them
     if (Object.keys(errors).length > 0) {
       res.status(400).json({ 
         error: 'Validation failed',
@@ -59,7 +59,7 @@ router.post('/login', async (req: Request<{}, {}, LoginRequestBody>, res: Respon
       return
     }
 
-    // Provjeri da li korisnik već postoji sa tim emailom
+    // Check if user already exists with this email
     const { data: existingUserByEmail, error: emailError } = await supabase
       .from('users')
       .select('*')
@@ -68,7 +68,7 @@ router.post('/login', async (req: Request<{}, {}, LoginRequestBody>, res: Respon
 
     if (emailError) throw emailError
 
-    // Provjeri da li korisnik već postoji sa tim nickname-om
+    // Check if user already exists with this nickname
     const { data: existingUserByNickname, error: nicknameError } = await supabase
       .from('users')
       .select('*')
@@ -77,11 +77,11 @@ router.post('/login', async (req: Request<{}, {}, LoginRequestBody>, res: Respon
 
     if (nicknameError) throw nicknameError
 
-    // Provjeri da li postoji neusklađenost ili pokušaj kreiranja sa postojećim podacima
+    // Check if there is a mismatch or attempt to create with existing data
     if (existingUserByEmail && existingUserByNickname) {
-      // Oba postoje, ali provjeri da li su isti korisnik
+      // Both exist, but check if they are the same user
       if (existingUserByEmail.id !== existingUserByNickname.id) {
-        // Različiti korisnici - email i nickname ne odgovaraju
+        // Different users - email and nickname do not match
         res.status(400).json({
           error: 'Email and nickname do not match',
           errors: {
@@ -91,9 +91,9 @@ router.post('/login', async (req: Request<{}, {}, LoginRequestBody>, res: Respon
         })
         return
       }
-      // Isti korisnik - nastavi sa login-om
+      // Same user - continue with login
     } else if (existingUserByEmail && !existingUserByNickname) {
-      // Email postoji, ali nickname ne postoji - pokušaj login-a sa pogrešnim nickname-om
+      // Email exists, but nickname does not - attempt to login with wrong nickname
       res.status(400).json({
         error: 'Nickname does not match email',
         errors: {
@@ -102,7 +102,7 @@ router.post('/login', async (req: Request<{}, {}, LoginRequestBody>, res: Respon
       })
       return
     } else if (!existingUserByEmail && existingUserByNickname) {
-      // Nickname postoji, ali email ne postoji - pokušaj kreiranja novog korisnika sa zauzetim nickname-om
+      // Nickname exists, but email does not - attempt to create new user with taken nickname
       res.status(400).json({
         error: 'Nickname already exists',
         errors: {
@@ -115,7 +115,7 @@ router.post('/login', async (req: Request<{}, {}, LoginRequestBody>, res: Respon
     let user: User
 
     if (existingUserByEmail) {
-      // Korisnik postoji - ažuriraj nickname ako je promijenjen
+      // User exists - update nickname if it has changed
       const { data: updatedUser, error: updateError } = await supabase
         .from('users')
         .update({ nickname })
@@ -126,8 +126,8 @@ router.post('/login', async (req: Request<{}, {}, LoginRequestBody>, res: Respon
       if (updateError) throw updateError
       user = updatedUser as User
     } else {
-      // Kreiraj novog korisnika - provjeri da li email ili nickname već postoje
-      // (Ovo bi trebalo biti već provjereno gore, ali dodajemo dodatnu provjeru za sigurnost)
+      // Create new user - check if email or nickname already exist
+      // (This should already be checked above, but we add an additional check for security)
       if (existingUserByEmail) {
         res.status(400).json({
           error: 'Email already exists',
@@ -148,7 +148,7 @@ router.post('/login', async (req: Request<{}, {}, LoginRequestBody>, res: Respon
         return
       }
 
-      // Kreiraj novog korisnika
+      // Create new user
       const { data: newUser, error: insertError } = await supabase
         .from('users')
         .insert([{ email, nickname }])
@@ -158,14 +158,14 @@ router.post('/login', async (req: Request<{}, {}, LoginRequestBody>, res: Respon
       if (insertError) throw insertError
       user = newUser as User
 
-      // Pošalji welcome email novom korisniku (asinhrono, ne blokira response)
+      // Send welcome email to new user (asynchronously, does not block response)
       emailService.sendWelcomeEmail(email, nickname).catch((error) => {
         console.error('Failed to send welcome email:', error)
-        // Ne baci error - login je uspješan čak i ako email ne uspije
+        // Don't throw error - login is successful even if email fails
       })
     }
 
-    // Generiši JWT token
+    // Generate JWT token
     const token = jwt.sign(
       { userId: user.id, email: user.email },
       process.env.JWT_SECRET || 'your-secret-key-change-in-production',
@@ -201,7 +201,7 @@ router.get('/verify', async (req: Request, res: Response, next: NextFunction) =>
       process.env.JWT_SECRET || 'your-secret-key-change-in-production'
     ) as JwtPayload
 
-    // Dohvati korisnika iz baze
+    // Get user from database
     const { data: user, error } = await supabase
       .from('users')
       .select('id, email, nickname')
@@ -228,7 +228,7 @@ router.post('/forgot-nickname', async (req: Request<{}, {}, { email: string }>, 
   try {
     const { email } = req.body
 
-    // Validacija email formata
+    // Email format validation
     if (!email) {
       res.status(400).json({ 
         error: 'Email is required'
@@ -244,7 +244,7 @@ router.post('/forgot-nickname', async (req: Request<{}, {}, { email: string }>, 
       return
     }
 
-    // Provjeri da li korisnik postoji sa tim emailom
+    // Check if user exists with this email
     const { data: user, error: userError } = await supabase
       .from('users')
       .select('id, email, nickname')
@@ -260,7 +260,7 @@ router.post('/forgot-nickname', async (req: Request<{}, {}, { email: string }>, 
       return
     }
 
-    // Ako korisnik ne postoji, vrati poruku
+    // If user does not exist, return message
     if (!user) {
       res.status(404).json({
         success: false,
@@ -269,13 +269,13 @@ router.post('/forgot-nickname', async (req: Request<{}, {}, { email: string }>, 
       return
     }
 
-    // Korisnik postoji - pošalji email sa nickname-om
+    // User exists - send email with nickname
     emailService.sendForgotNicknameEmail(user.email, user.nickname).catch((error) => {
       console.error('Failed to send forgot nickname email:', error)
-      // Ne baci error - response je već poslat
+      // Don't throw error - response is already sent
     })
 
-    // Vrati success poruku
+    // Return success message
     res.json({
       success: true,
       message: 'We have sent your nickname to your email address'
@@ -295,7 +295,7 @@ router.delete('/delete', authenticateToken, async (req: AuthRequest, res: Respon
 
     const userId = req.user.userId
 
-    // Dohvati korisnika da dobijemo nickname za email
+    // Get user to retrieve nickname for email
     const { data: user, error: fetchError } = await supabase
       .from('users')
       .select('id, email, nickname')
@@ -307,7 +307,7 @@ router.delete('/delete', authenticateToken, async (req: AuthRequest, res: Respon
       return
     }
 
-    // Obriši korisnika iz baze
+    // Delete user from database
     const { error: deleteError } = await supabase
       .from('users')
       .delete()
@@ -319,10 +319,10 @@ router.delete('/delete', authenticateToken, async (req: AuthRequest, res: Respon
       return
     }
 
-    // Pošalji delete account email (asinhrono, ne blokira response)
+    // Send delete account email (asynchronously, does not block response)
     emailService.sendDeleteAccountEmail(user.email, user.nickname).catch((error) => {
       console.error('Failed to send delete account email:', error)
-      // Ne baci error - delete je uspješan čak i ako email ne uspije
+      // Don't throw error - delete is successful even if email fails
     })
 
     res.json({

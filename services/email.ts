@@ -8,25 +8,25 @@ interface EmailOptions {
 }
 
 /**
- * Email service za slanje emailova
+ * Email service for sending emails
  */
 class EmailService {
   private transporter: nodemailer.Transporter | null = null
 
   /**
-   * Inicijalizira email transporter
+   * Initialize email transporter
    */
   private async initializeTransporter(): Promise<nodemailer.Transporter> {
     if (this.transporter) {
       return this.transporter
     }
 
-    // Konfiguracija za email servis (Gmail, SMTP, itd.)
-    // Možeš koristiti Gmail, SendGrid, ili bilo koji SMTP servis
+    // Configuration for email service (Gmail, SMTP, etc.)
+    // You can use Gmail, SendGrid, or any SMTP service
     this.transporter = nodemailer.createTransport({
       host: process.env.SMTP_HOST || 'smtp.gmail.com',
       port: parseInt(process.env.SMTP_PORT || '587'),
-      secure: process.env.SMTP_SECURE === 'true', // true za 465, false za ostale portove
+      secure: process.env.SMTP_SECURE === 'true', // true for 465, false for other ports
       auth: {
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASSWORD,
@@ -37,17 +37,17 @@ class EmailService {
   }
 
   /**
-   * Dohvata email template iz Supabase Storage
-   * @param templateName - Ime template fajla (npr. 'welcome-email.html')
-   * @param variables - Varijable za zamjenu u template-u (npr. { nickname: 'John', email: 'john@example.com' })
-   * @returns HTML string template-a sa zamijenjenim varijablama
+   * Get email template from Supabase Storage
+   * @param templateName - Template file name (e.g. 'welcome-email.html')
+   * @param variables - Variables to replace in template (e.g. { nickname: 'John', email: 'john@example.com' })
+   * @returns HTML string of template with replaced variables
    */
   async getTemplateFromStorage(
     templateName: string,
     variables: Record<string, string> = {}
   ): Promise<string> {
     try {
-      // Dohvati template iz Supabase Storage
+      // Get template from Supabase Storage
       // Bucket: 'email-templates', File: templateName
       const { data, error } = await supabase.storage
         .from('email-templates')
@@ -58,10 +58,10 @@ class EmailService {
         throw new Error(`Failed to load email template: ${templateName}`)
       }
 
-      // Konvertuj Blob u tekst
+      // Convert Blob to text
       const templateText = await data.text()
 
-      // Zamijeni varijable u template-u
+      // Replace variables in template
       // Format: {{variableName}}
       let html = templateText
       for (const [key, value] of Object.entries(variables)) {
@@ -77,7 +77,7 @@ class EmailService {
   }
 
   /**
-   * Šalje email
+   * Send email
    */
   async sendEmail(options: EmailOptions): Promise<void> {
     try {
@@ -98,17 +98,17 @@ class EmailService {
   }
 
   /**
-   * Šalje welcome email novom korisniku
+   * Send welcome email to new user
    */
   async sendWelcomeEmail(email: string, nickname: string): Promise<void> {
     try {
-      // Dohvati template iz Supabase Storage
+      // Get template from Supabase Storage
       const html = await this.getTemplateFromStorage('welcome-email.html', {
         nickname,
         email,
       })
 
-      // Pošalji email
+      // Send email
       await this.sendEmail({
         to: email,
         subject: 'Welcome to MyWebsite! 🎉',
@@ -116,23 +116,23 @@ class EmailService {
       })
     } catch (error) {
       console.error('Error sending welcome email:', error)
-      // Ne baci error - ne želimo da login ne uspije zbog email problema
-      // Samo loguj grešku
+      // Don't throw error - we don't want login to fail because of email issues
+      // Just log the error
     }
   }
 
   /**
-   * Šalje delete account email korisniku čiji je profil obrisan
+   * Send delete account email to user whose profile was deleted
    */
   async sendDeleteAccountEmail(email: string, nickname: string): Promise<void> {
     try {
-      // Dohvati template iz Supabase Storage
+      // Get template from Supabase Storage
       const html = await this.getTemplateFromStorage('delete-account.html', {
         nickname,
         email,
       })
 
-      // Pošalji email
+      // Send email
       await this.sendEmail({
         to: email,
         subject: 'Account Deleted - MyWebsite',
@@ -140,23 +140,23 @@ class EmailService {
       })
     } catch (error) {
       console.error('Error sending delete account email:', error)
-      // Ne baci error - ne želimo da delete ne uspije zbog email problema
-      // Samo loguj grešku
+      // Don't throw error - we don't want delete to fail because of email issues
+      // Just log the error
     }
   }
 
   /**
-   * Šalje forgot nickname email korisniku
+   * Send forgot nickname email to user
    */
   async sendForgotNicknameEmail(email: string, nickname: string): Promise<void> {
     try {
-      // Dohvati template iz Supabase Storage
+      // Get template from Supabase Storage
       const html = await this.getTemplateFromStorage('forgot-nickname.html', {
         nickname,
         email,
       })
 
-      // Pošalji email
+      // Send email
       await this.sendEmail({
         to: email,
         subject: 'Your Nickname - MyWebsite',
@@ -164,8 +164,8 @@ class EmailService {
       })
     } catch (error) {
       console.error('Error sending forgot nickname email:', error)
-      // Ne baci error - ne želimo da request ne uspije zbog email problema
-      // Samo loguj grešku
+      // Don't throw error - we don't want request to fail because of email issues
+      // Just log the error
     }
   }
 }
