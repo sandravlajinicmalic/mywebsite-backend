@@ -59,17 +59,63 @@ router.post('/login', async (req: Request<{}, {}, LoginRequestBody>, res: Respon
       return
     }
 
-    // Provjeri da li korisnik već postoji
-    const { data: existingUser } = await supabase
+    // Provjeri da li korisnik već postoji sa tim emailom
+    const { data: existingUserByEmail, error: emailError } = await supabase
       .from('users')
       .select('*')
       .eq('email', email)
-      .single()
+      .maybeSingle()
+
+    if (emailError) throw emailError
+
+    // Provjeri da li korisnik već postoji sa tim nickname-om
+    const { data: existingUserByNickname, error: nicknameError } = await supabase
+      .from('users')
+      .select('*')
+      .eq('nickname', nickname)
+      .maybeSingle()
+
+    if (nicknameError) throw nicknameError
+
+    // Provjeri da li postoji neusklađenost ili pokušaj kreiranja sa postojećim podacima
+    if (existingUserByEmail && existingUserByNickname) {
+      // Oba postoje, ali provjeri da li su isti korisnik
+      if (existingUserByEmail.id !== existingUserByNickname.id) {
+        // Različiti korisnici - email i nickname ne odgovaraju
+        res.status(400).json({
+          error: 'Email and nickname do not match',
+          errors: {
+            email: 'This email is already registered with a different nickname',
+            nickname: 'This nickname is already registered with a different email'
+          }
+        })
+        return
+      }
+      // Isti korisnik - nastavi sa login-om
+    } else if (existingUserByEmail && !existingUserByNickname) {
+      // Email postoji, ali nickname ne postoji - pokušaj login-a sa pogrešnim nickname-om
+      res.status(400).json({
+        error: 'Nickname does not match email',
+        errors: {
+          nickname: 'This nickname does not match the email address'
+        }
+      })
+      return
+    } else if (!existingUserByEmail && existingUserByNickname) {
+      // Nickname postoji, ali email ne postoji - pokušaj kreiranja novog korisnika sa zauzetim nickname-om
+      res.status(400).json({
+        error: 'Nickname already exists',
+        errors: {
+          nickname: 'This nickname is already taken'
+        }
+      })
+      return
+    }
 
     let user: User
 
-    if (existingUser) {
-      // Ažuriraj nickname ako je promijenjen
+    if (existingUserByEmail) {
+      // Korisnik postoji - ažuriraj nickname ako je promijenjen
       const { data: updatedUser, error: updateError } = await supabase
         .from('users')
         .update({ nickname })
@@ -80,6 +126,28 @@ router.post('/login', async (req: Request<{}, {}, LoginRequestBody>, res: Respon
       if (updateError) throw updateError
       user = updatedUser as User
     } else {
+      // Kreiraj novog korisnika - provjeri da li email ili nickname već postoje
+      // (Ovo bi trebalo biti već provjereno gore, ali dodajemo dodatnu provjeru za sigurnost)
+      if (existingUserByEmail) {
+        res.status(400).json({
+          error: 'Email already exists',
+          errors: {
+            email: 'This email is already taken'
+          }
+        })
+        return
+      }
+      
+      if (existingUserByNickname) {
+        res.status(400).json({
+          error: 'Nickname already exists',
+          errors: {
+            nickname: 'This nickname is already taken'
+          }
+        })
+        return
+      }
+
       // Kreiraj novog korisnika
       const { data: newUser, error: insertError } = await supabase
         .from('users')
