@@ -1,5 +1,6 @@
 import express, { type Request, type Response, type NextFunction } from 'express'
 import { supabase } from '../config/supabase.js'
+import { emailService } from '../services/email.js'
 
 const router = express.Router()
 
@@ -145,6 +146,12 @@ router.post('/submit', async (req: Request<{}, {}, ContactRequestBody>, res: Res
       console.error('Supabase error:', error)
       throw error
     }
+
+    // Send email notification to admin (asynchronously, does not block response)
+    emailService.sendContactFormEmail(name, email, message).catch((error) => {
+      console.error('Failed to send contact form email:', error)
+      // Don't throw error - contact form submission is successful even if email fails
+    })
 
     res.json({
       success: true,

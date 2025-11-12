@@ -168,6 +168,115 @@ class EmailService {
       // Just log the error
     }
   }
+
+  /**
+   * Send contact form message email to admin
+   */
+  async sendContactFormEmail(name: string, email: string, message: string): Promise<void> {
+    try {
+      // Get admin email from environment variable (SMTP_USER or SMTP_FROM)
+      const adminEmail = process.env.ADMIN_EMAIL || process.env.SMTP_FROM || process.env.SMTP_USER
+      
+      if (!adminEmail) {
+        console.error('Admin email not configured. Set ADMIN_EMAIL, SMTP_FROM, or SMTP_USER environment variable.')
+        return
+      }
+
+      // Try to get template from Supabase Storage, fallback to simple HTML if not found
+      let html: string
+      try {
+        html = await this.getTemplateFromStorage('contact-form.html', {
+          name,
+          email,
+          message,
+        })
+      } catch (templateError) {
+        // If template doesn't exist, use simple HTML
+        console.log('Contact form template not found, using simple HTML')
+        html = this.getContactFormEmailHTML(name, email, message)
+      }
+
+      // Send email to admin
+      await this.sendEmail({
+        to: adminEmail,
+        subject: `New Contact Form Message from ${name}`,
+        html,
+      })
+    } catch (error) {
+      console.error('Error sending contact form email:', error)
+      // Don't throw error - we don't want contact form submission to fail because of email issues
+      // Just log the error
+    }
+  }
+
+  /**
+   * Generate simple HTML for contact form email (fallback if template doesn't exist)
+   */
+  private getContactFormEmailHTML(name: string, email: string, message: string): string {
+    return `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <style>
+            body {
+              font-family: Arial, sans-serif;
+              line-height: 1.6;
+              color: #333;
+              max-width: 600px;
+              margin: 0 auto;
+              padding: 20px;
+            }
+            .header {
+              background-color: #06B6D4;
+              color: white;
+              padding: 20px;
+              border-radius: 8px 8px 0 0;
+            }
+            .content {
+              background-color: #f9f9f9;
+              padding: 20px;
+              border: 1px solid #ddd;
+              border-top: none;
+              border-radius: 0 0 8px 8px;
+            }
+            .field {
+              margin-bottom: 15px;
+            }
+            .label {
+              font-weight: bold;
+              color: #06B6D4;
+              margin-bottom: 5px;
+            }
+            .value {
+              padding: 10px;
+              background-color: white;
+              border-radius: 4px;
+              border: 1px solid #ddd;
+            }
+            .message {
+              white-space: pre-wrap;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h2>New Contact Form Message</h2>
+          </div>
+          <div class="content">
+            <div class="field">
+              <div class="label">From:</div>
+              <div class="value">${name} (${email})</div>
+            </div>
+            <div class="field">
+              <div class="label">Message:</div>
+              <div class="value message">${message}</div>
+            </div>
+          </div>
+        </body>
+      </html>
+    `
+  }
 }
 
 export const emailService = new EmailService()
