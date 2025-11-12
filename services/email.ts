@@ -144,6 +144,30 @@ class EmailService {
       // Samo loguj grešku
     }
   }
+
+  /**
+   * Šalje forgot nickname email korisniku
+   */
+  async sendForgotNicknameEmail(email: string, nickname: string): Promise<void> {
+    try {
+      // Dohvati template iz Supabase Storage
+      const html = await this.getTemplateFromStorage('forgot-nickname.html', {
+        nickname,
+        email,
+      })
+
+      // Pošalji email
+      await this.sendEmail({
+        to: email,
+        subject: 'Your Nickname - MyWebsite',
+        html,
+      })
+    } catch (error) {
+      console.error('Error sending forgot nickname email:', error)
+      // Ne baci error - ne želimo da request ne uspije zbog email problema
+      // Samo loguj grešku
+    }
+  }
 }
 
 export const emailService = new EmailService()

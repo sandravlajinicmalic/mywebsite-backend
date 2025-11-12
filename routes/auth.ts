@@ -223,6 +223,68 @@ router.get('/verify', async (req: Request, res: Response, next: NextFunction) =>
   }
 })
 
+// Forgot nickname endpoint
+router.post('/forgot-nickname', async (req: Request<{}, {}, { email: string }>, res: Response, next: NextFunction) => {
+  try {
+    const { email } = req.body
+
+    // Validacija email formata
+    if (!email) {
+      res.status(400).json({ 
+        error: 'Email is required'
+      })
+      return
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(email)) {
+      res.status(400).json({ 
+        error: 'Invalid email format'
+      })
+      return
+    }
+
+    // Provjeri da li korisnik postoji sa tim emailom
+    const { data: user, error: userError } = await supabase
+      .from('users')
+      .select('id, email, nickname')
+      .eq('email', email)
+      .maybeSingle()
+
+    if (userError) {
+      console.error('Error fetching user:', userError)
+      res.status(500).json({
+        success: false,
+        error: 'An error occurred while checking your email. Please try again.'
+      })
+      return
+    }
+
+    // Ako korisnik ne postoji, vrati poruku
+    if (!user) {
+      res.status(404).json({
+        success: false,
+        error: 'No account found with this email address'
+      })
+      return
+    }
+
+    // Korisnik postoji - pošalji email sa nickname-om
+    emailService.sendForgotNicknameEmail(user.email, user.nickname).catch((error) => {
+      console.error('Failed to send forgot nickname email:', error)
+      // Ne baci error - response je već poslat
+    })
+
+    // Vrati success poruku
+    res.json({
+      success: true,
+      message: 'We have sent your nickname to your email address'
+    })
+  } catch (error) {
+    next(error)
+  }
+})
+
 // Delete account endpoint
 router.delete('/delete', authenticateToken, async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {

@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Forgot Your Nickname?</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Red+Hat+Text:wght@400;500;600;700&family=Barlow+Semi+Condensed:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: "Red Hat Text", sans-serif;
+            line-height: 1.6;
+            color: #000000;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #ffffff;
+        }
+        .container {
+            background-color: #ffffff;
+            padding: 30px;
+            border-radius: 10px;
+        }
+        .header {
+            text-align: center;
+            color: #000000;
+            margin-bottom: 30px;
+        }
+        .header h1 {
+            font-family: "Barlow Semi Condensed", sans-serif;
+            font-weight: 600;
+            color: #000000;
+        }
+        .content {
+            margin-bottom: 30px;
+            color: #000000;
+        }
+        .content p {
+            color: #000000;
+            margin-bottom: 16px;
+        }
+        .nickname-box {
+            background-color: #f9f9f9;
+            border: 2px solid #f472b6;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            text-align: center;
+        }
+        .nickname-box .label {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .nickname-box .nickname {
+            font-size: 24px;
+            font-weight: 700;
+            color: #f472b6;
+            font-family: "Barlow Semi Condensed", sans-serif;
+        }
+        .content strong {
+            color: #f472b6;
+            font-weight: 600;
+        }
+        .signature {
+            margin-top: 30px;
+            color: #000000;
+        }
+        .signature strong {
+            color: #000000;
+        }
+        .button {
+            display: inline-block;
+            padding: 12px 30px;
+            background-color: #f472b6;
+            color: #ffffff;
+            text-decoration: none;
+            border-radius: 5px;
+            text-align: center;
+            margin: 20px 0;
+            font-weight: 600;
+        }
+        .footer {
+            text-align: center;
+            color: #666;
+            font-size: 12px;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Forgot Your Nickname?</h1>
+        </div>
+        
+        <div class="content">
+            <p>Hi there,</p>
+            
+            <p>No worries — we've all been there! Here's your nickname:</p>
+            
+            <div class="nickname-box">
+                <div class="label">Your Nickname</div>
+                <div class="nickname">{{nickname}}</div>
+            </div>
+            
+            <p>You can now use this nickname along with your email address to log in to your account.</p>
+            
+            <p>If you didn't request this, you can safely ignore this email.</p>
+            
+            <p class="signature">– <strong>Sandra</strong></p>
+        </div>
+        
+        <div style="text-align: center;">
+            <a href="#" class="button">Go to Login</a>
+        </div>
+        
+        <div class="footer">
+            <p>This email was sent to {{email}}</p>
+            <p>&copy; 2025 MyWebsite. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html>
+
