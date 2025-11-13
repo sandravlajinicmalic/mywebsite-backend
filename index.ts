@@ -157,19 +157,62 @@ async function cleanupOldLogs(): Promise<void> {
   try {
     const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000) // 2 hours ago
     
-    const { error } = await supabase
+    // Add timeout to prevent hanging requests
+    let timeoutId: NodeJS.Timeout | null = null
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      timeoutId = setTimeout(() => reject(new Error('Cleanup request timeout')), 10000) // 10 second timeout
+    })
+    
+    const deletePromise = Promise.resolve(supabase
       .from('cat_logs')
       .delete()
-      .lt('timestamp', twoHoursAgo.toISOString())
+      .lt('timestamp', twoHoursAgo.toISOString()))
+      .then((result) => {
+        if (timeoutId) clearTimeout(timeoutId)
+        return result
+      })
 
-    if (error) {
-      console.error('Error cleaning up old logs:', error)
-      return
+    try {
+      const result = await Promise.race([deletePromise, timeoutPromise])
+      const { error } = result as { error: any }
+
+      if (error) {
+        // Only log if it's not a network/fetch error (these are usually temporary)
+        if (error.message && error.message.includes('fetch failed')) {
+          console.warn(`[Cleanup] Temporary network issue at ${new Date().toISOString()} - will retry on next run`)
+        } else {
+          console.error('Error cleaning up old logs:', {
+            message: error.message,
+            details: error.details || error.toString(),
+            hint: error.hint || '',
+            code: error.code || ''
+          })
+        }
+        return
+      }
+
+      console.log(`Cleaned up old cat logs (older than 2 hours) at ${new Date().toISOString()}`)
+    } catch (raceError: any) {
+      // This catches timeout errors from Promise.race
+      if (timeoutId) clearTimeout(timeoutId)
+      if (raceError.message && raceError.message.includes('timeout')) {
+        console.warn(`[Cleanup] Request timeout at ${new Date().toISOString()} - will retry on next run`)
+      } else {
+        throw raceError // Re-throw if it's not a timeout
+      }
     }
-
-    console.log(`Cleaned up old cat logs (older than 2 hours) at ${new Date().toISOString()}`)
-  } catch (error) {
-    console.error('Failed to cleanup old logs:', error)
+  } catch (error: any) {
+    // Handle network and other errors gracefully
+    if (error.message && error.message.includes('fetch failed')) {
+      console.warn(`[Cleanup] Network error at ${new Date().toISOString()} - will retry on next run`)
+    } else {
+      console.error('Failed to cleanup old logs:', {
+        message: error?.message || 'Unknown error',
+        details: error?.details || error?.toString() || '',
+        hint: error?.hint || '',
+        code: error?.code || ''
+      })
+    }
   }
 }
 
