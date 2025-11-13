@@ -46,12 +46,26 @@ CREATE TABLE IF NOT EXISTS wheel_spins (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- User Active Rewards tabela - za privremene efekte nagrada
+CREATE TABLE IF NOT EXISTS user_active_rewards (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  reward_type TEXT NOT NULL, -- 'avatar', 'nickname', 'cursor', etc.
+  reward_value TEXT NOT NULL, -- JSON string sa podacima nagrade (npr. avatar path)
+  expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE(user_id, reward_type) -- Jedan korisnik može imati samo jednu aktivnu nagradu određenog tipa
+);
+
 -- Index za brže pretraživanje
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 CREATE INDEX IF NOT EXISTS idx_contact_messages_created_at ON contact_messages(created_at);
 CREATE INDEX IF NOT EXISTS idx_cat_logs_timestamp ON cat_logs(timestamp DESC);
 CREATE INDEX IF NOT EXISTS idx_wheel_spins_user_id ON wheel_spins(user_id);
 CREATE INDEX IF NOT EXISTS idx_wheel_spins_created_at ON wheel_spins(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_user_active_rewards_user_id ON user_active_rewards(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_active_rewards_expires_at ON user_active_rewards(expires_at);
+CREATE INDEX IF NOT EXISTS idx_user_active_rewards_user_type ON user_active_rewards(user_id, reward_type);
 
 -- RLS (Row Level Security) policies - opcionalno, za dodatnu sigurnost
 -- ALTER TABLE users ENABLE ROW LEVEL SECURITY;
