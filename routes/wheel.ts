@@ -16,8 +16,8 @@ interface WheelSpin {
   created_at: string
 }
 
-const COOLDOWN_MS = 60 * 1000 // 1 minute (60 seconds)
-const REWARD_DURATION_MS = 60 * 1000 // 1 minute
+const COOLDOWN_MS = 30 * 1000 // 30 seconds
+const REWARD_DURATION_MS = 30 * 1000 // 30 seconds
 
 // Helper function to create an active reward
 const createActiveReward = async (
@@ -191,7 +191,7 @@ router.post('/spin', authenticateToken, async (req: AuthRequest, res: Response, 
       success: true,
       spin: newSpin as WheelSpin,
       canSpin: canSpinAgain,
-      cooldownSeconds: canSpinAgain ? 0 : 60 // 1 minute, or 0 if Spin Again
+      cooldownSeconds: canSpinAgain ? 0 : 30 // 30 seconds, or 0 if Spin Again
     })
   } catch (error) {
     next(error)

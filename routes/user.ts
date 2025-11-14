@@ -28,18 +28,39 @@ const shouldLog = (userId: string): boolean => {
  * Get user data and default avatar (helper function to avoid duplication)
  */
 const getUserDataAndAvatar = async (userId: string) => {
-  const { data: userData, error: userError } = await supabase
-    .from('users')
-    .select('id, nickname')
-    .eq('id', userId)
-    .single()
+  try {
+    const { data: userData, error: userError } = await supabase
+      .from('users')
+      .select('id, nickname')
+      .eq('id', userId)
+      .single()
 
-  if (userError) {
-    throw userError
+    if (userError) {
+      // Enhanced error logging
+      console.error('❌ Supabase query error:', {
+        code: userError.code,
+        message: userError.message,
+        details: userError.details,
+        hint: userError.hint,
+        userId
+      })
+      throw userError
+    }
+
+    const defaultAvatar = getUserDefaultAvatar(userData.id, userData.nickname)
+    return { userData, defaultAvatar }
+  } catch (error: any) {
+    // Catch network/connection errors
+    if (error.message?.includes('fetch failed') || error.cause?.code === 'ECONNREFUSED') {
+      console.error('❌ Supabase connection error:', {
+        message: error.message,
+        cause: error.cause,
+        hint: 'Check if SUPABASE_URL is correct and Supabase project is active'
+      })
+      throw new Error('Failed to connect to Supabase. Please check your SUPABASE_URL and ensure the project is active.')
+    }
+    throw error
   }
-
-  const defaultAvatar = getUserDefaultAvatar(userData.id, userData.nickname)
-  return { userData, defaultAvatar }
 }
 
 // Get all active rewards for current user
@@ -53,7 +74,15 @@ router.get('/active-rewards', authenticateToken, async (req: AuthRequest, res: R
     }
 
     // Get user info for default avatar calculation
-    const { defaultAvatar } = await getUserDataAndAvatar(userId)
+    let defaultAvatar: string
+    try {
+      const userData = await getUserDataAndAvatar(userId)
+      defaultAvatar = userData.defaultAvatar
+    } catch (error: any) {
+      console.error('Error getting user data for avatar:', error)
+      // Fallback to a default avatar if we can't get user data
+      defaultAvatar = '/images/user-profile-icons/cat1.svg'
+    }
 
     // Get all active rewards (non-expired)
     const { data: activeRewards, error: rewardError } = await supabase
@@ -140,7 +169,15 @@ router.get('/active-avatar', authenticateToken, async (req: AuthRequest, res: Re
     }
 
     // Get user info for default avatar calculation
-    const { defaultAvatar } = await getUserDataAndAvatar(userId)
+    let defaultAvatar: string
+    try {
+      const userData = await getUserDataAndAvatar(userId)
+      defaultAvatar = userData.defaultAvatar
+    } catch (error: any) {
+      console.error('Error getting user data for avatar:', error)
+      // Fallback to a default avatar if we can't get user data
+      defaultAvatar = '/images/user-profile-icons/cat1.svg'
+    }
 
     // Check for active avatar reward
     const { data: activeReward, error: rewardError } = await supabase
