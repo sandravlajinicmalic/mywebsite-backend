@@ -25,6 +25,24 @@ const shouldLog = (userId: string): boolean => {
 }
 
 /**
+ * Check if error is a connection/network error
+ */
+const isConnectionError = (error: any): boolean => {
+  if (!error) return false
+  
+  // Check for fetch failed errors
+  if (error.message?.includes('fetch failed')) return true
+  if (error.cause?.code === 'ECONNREFUSED') return true
+  if (error.cause?.code === 'ENOTFOUND') return true
+  if (error.cause?.code === 'ETIMEDOUT') return true
+  
+  // Check error type
+  if (error instanceof TypeError && error.message?.includes('fetch')) return true
+  
+  return false
+}
+
+/**
  * Get user data and default avatar (helper function to avoid duplication)
  */
 const getUserDataAndAvatar = async (userId: string) => {
@@ -85,15 +103,43 @@ router.get('/active-rewards', authenticateToken, async (req: AuthRequest, res: R
     }
 
     // Get all active rewards (non-expired)
-    const { data: activeRewards, error: rewardError } = await supabase
-      .from('user_active_rewards')
-      .select('*')
-      .eq('user_id', userId)
-      .gt('expires_at', new Date().toISOString()) // Only get non-expired rewards
-      .order('created_at', { ascending: false })
+    let activeRewards: any[] | null = null
+    try {
+      const { data, error: rewardError } = await supabase
+        .from('user_active_rewards')
+        .select('*')
+        .eq('user_id', userId)
+        .gt('expires_at', new Date().toISOString()) // Only get non-expired rewards
+        .order('created_at', { ascending: false })
 
-    if (rewardError) {
-      throw rewardError
+      if (rewardError) {
+        // If it's a connection error, log and continue with empty rewards
+        if (isConnectionError(rewardError)) {
+          console.error('❌ Supabase connection error when fetching active rewards:', {
+            message: rewardError.message,
+            userId,
+            hint: 'No internet connection or Supabase is unreachable. Returning empty rewards.'
+          })
+          activeRewards = []
+        } else {
+          // For other errors, throw them
+          throw rewardError
+        }
+      } else {
+        activeRewards = data
+      }
+    } catch (error: any) {
+      // Catch any connection errors that might not be caught above
+      if (isConnectionError(error)) {
+        console.error('❌ Supabase connection error when fetching active rewards:', {
+          message: error.message,
+          userId,
+          hint: 'No internet connection or Supabase is unreachable. Returning empty rewards.'
+        })
+        activeRewards = []
+      } else {
+        throw error
+      }
     }
 
     // Parse rewards and build response
@@ -180,17 +226,47 @@ router.get('/active-avatar', authenticateToken, async (req: AuthRequest, res: Re
     }
 
     // Check for active avatar reward
-    const { data: activeReward, error: rewardError } = await supabase
-      .from('user_active_rewards')
-      .select('*')
-      .eq('user_id', userId)
-      .eq('reward_type', 'avatar')
-      .gt('expires_at', new Date().toISOString()) // Only get non-expired rewards
-      .single()
+    let activeReward: any = null
+    try {
+      const { data, error: rewardError } = await supabase
+        .from('user_active_rewards')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('reward_type', 'avatar')
+        .gt('expires_at', new Date().toISOString()) // Only get non-expired rewards
+        .single()
 
-    if (rewardError && rewardError.code !== 'PGRST116') {
-      // PGRST116 means no rows found, which is fine
-      throw rewardError
+      if (rewardError) {
+        // PGRST116 means no rows found, which is fine
+        if (rewardError.code === 'PGRST116') {
+          activeReward = null
+        } else if (isConnectionError(rewardError)) {
+          // Connection error - log and continue with default avatar
+          console.error('❌ Supabase connection error when fetching active avatar:', {
+            message: rewardError.message,
+            userId,
+            hint: 'No internet connection or Supabase is unreachable. Returning default avatar.'
+          })
+          activeReward = null
+        } else {
+          // For other errors, throw them
+          throw rewardError
+        }
+      } else {
+        activeReward = data
+      }
+    } catch (error: any) {
+      // Catch any connection errors that might not be caught above
+      if (isConnectionError(error)) {
+        console.error('❌ Supabase connection error when fetching active avatar:', {
+          message: error.message,
+          userId,
+          hint: 'No internet connection or Supabase is unreachable. Returning default avatar.'
+        })
+        activeReward = null
+      } else {
+        throw error
+      }
     }
 
     if (activeReward) {
@@ -247,18 +323,50 @@ router.post('/cleanup-expired-rewards', authenticateToken, async (req: AuthReque
     }
 
     // Delete expired rewards for this user
-    const { error } = await supabase
-      .from('user_active_rewards')
-      .delete()
-      .eq('user_id', userId)
-      .lt('expires_at', new Date().toISOString())
+    try {
+      const { error } = await supabase
+        .from('user_active_rewards')
+        .delete()
+        .eq('user_id', userId)
+        .lt('expires_at', new Date().toISOString())
 
-    if (error) throw error
+      if (error) {
+        // If it's a connection error, log and return success (cleanup can wait)
+        if (isConnectionError(error)) {
+          console.error('❌ Supabase connection error when cleaning up expired rewards:', {
+            message: error.message,
+            userId,
+            hint: 'No internet connection. Cleanup will be retried later.'
+          })
+          res.json({
+            success: true,
+            message: 'Cleanup skipped due to connection issue. Will retry when connection is restored.'
+          })
+          return
+        }
+        throw error
+      }
 
-    res.json({
-      success: true,
-      message: 'Expired rewards cleaned up'
-    })
+      res.json({
+        success: true,
+        message: 'Expired rewards cleaned up'
+      })
+    } catch (error: any) {
+      // Catch any connection errors that might not be caught above
+      if (isConnectionError(error)) {
+        console.error('❌ Supabase connection error when cleaning up expired rewards:', {
+          message: error.message,
+          userId,
+          hint: 'No internet connection. Cleanup will be retried later.'
+        })
+        res.json({
+          success: true,
+          message: 'Cleanup skipped due to connection issue. Will retry when connection is restored.'
+        })
+        return
+      }
+      throw error
+    }
   } catch (error) {
     next(error)
   }
