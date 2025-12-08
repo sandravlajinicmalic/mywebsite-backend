@@ -21,17 +21,60 @@ class EmailService {
       return this.transporter
     }
 
+    // Check if SMTP configuration is present
+    const smtpHost = process.env.SMTP_HOST || 'smtp.gmail.com'
+    const smtpPort = parseInt(process.env.SMTP_PORT || '587')
+    const smtpSecure = process.env.SMTP_SECURE === 'true'
+    const smtpUser = process.env.SMTP_USER
+    const smtpPassword = process.env.SMTP_PASSWORD
+
+    if (!smtpUser || !smtpPassword) {
+      console.error('❌ SMTP configuration missing!')
+      console.error('SMTP_USER:', smtpUser ? '✓ Set' : '✗ Missing')
+      console.error('SMTP_PASSWORD:', smtpPassword ? '✓ Set' : '✗ Missing')
+      throw new Error('SMTP configuration is incomplete. Please set SMTP_USER and SMTP_PASSWORD environment variables.')
+    }
+
+    console.log('📧 Initializing email transporter...')
+    console.log('SMTP Host:', smtpHost)
+    console.log('SMTP Port:', smtpPort)
+    console.log('SMTP Secure:', smtpSecure)
+    console.log('SMTP User:', smtpUser)
+
     // Configuration for email service (Gmail, SMTP, etc.)
     // You can use Gmail, SendGrid, or any SMTP service
     this.transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST || 'smtp.gmail.com',
-      port: parseInt(process.env.SMTP_PORT || '587'),
-      secure: process.env.SMTP_SECURE === 'true', // true for 465, false for other ports
+      host: smtpHost,
+      port: smtpPort,
+      secure: smtpSecure, // true for 465, false for other ports
       auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASSWORD,
+        user: smtpUser,
+        pass: smtpPassword,
       },
+      // Add connection timeout and better error handling
+      connectionTimeout: 10000, // 10 seconds
+      greetingTimeout: 10000,
+      socketTimeout: 10000,
+      // Debug mode for better error messages
+      debug: process.env.NODE_ENV === 'development',
+      logger: process.env.NODE_ENV === 'development',
     })
+
+    // Verify connection
+    try {
+      await this.transporter.verify()
+      console.log('✓ SMTP connection verified successfully')
+    } catch (error: any) {
+      console.error('❌ SMTP connection verification failed!')
+      console.error('Error details:', {
+        code: error.code,
+        command: error.command,
+        response: error.response,
+        responseCode: error.responseCode,
+        message: error.message,
+      })
+      throw new Error(`SMTP connection failed: ${error.message}`)
+    }
 
     return this.transporter
   }
@@ -81,18 +124,45 @@ class EmailService {
    */
   async sendEmail(options: EmailOptions): Promise<void> {
     try {
+      console.log(`📧 Attempting to send email to ${options.to}...`)
       const transporter = await this.initializeTransporter()
 
-      await transporter.sendMail({
-        from: process.env.SMTP_FROM || process.env.SMTP_USER,
+      const fromEmail = process.env.SMTP_FROM || process.env.SMTP_USER
+      if (!fromEmail) {
+        throw new Error('SMTP_FROM or SMTP_USER environment variable is not set')
+      }
+
+      const mailOptions = {
+        from: fromEmail,
         to: options.to,
         subject: options.subject,
         html: options.html,
+      }
+
+      console.log('Mail options:', {
+        from: mailOptions.from,
+        to: mailOptions.to,
+        subject: mailOptions.subject,
       })
 
-      console.log(`Email sent successfully to ${options.to}`)
-    } catch (error) {
-      console.error('Error sending email:', error)
+      const info = await transporter.sendMail(mailOptions)
+
+      console.log(`✓ Email sent successfully to ${options.to}`)
+      console.log('Message ID:', info.messageId)
+      console.log('Response:', info.response)
+    } catch (error: any) {
+      console.error('❌ Error sending email:', {
+        to: options.to,
+        subject: options.subject,
+        error: {
+          code: error.code,
+          command: error.command,
+          response: error.response,
+          responseCode: error.responseCode,
+          message: error.message,
+          stack: error.stack,
+        },
+      })
       throw error
     }
   }
