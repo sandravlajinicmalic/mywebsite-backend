@@ -1,43 +1,34 @@
-# Exported from Render on 2025-12-08T18:21:41Z
-version: "1"
-projects:
-- name: meowcrafts
-  environments:
-  - name: Production
-    services:
-    - type: web
-      name: mywebsite-backend
-      runtime: node
-      repo: https://github.com/sandravlajinicmalic/mywebsite-backend
-      plan: free
-      envVars:
-      - key: OPENAI_API_KEY
-        sync: false
-      - key: JWT_SECRET
-        sync: false
-      - key: SMTP_FROM
-        sync: false
-      - key: SMTP_PASSWORD
-        sync: false
-      - key: SMTP_USER
-        sync: false
-      - key: SMTP_SECURE
-        sync: false
-      - key: SMTP_PORT
-        sync: false
-      - key: SMTP_HOST
-        sync: false
-      - key: SUPABASE_ANON_KEY
+services:
+  - type: web
+    name: mywebsite-backend
+    env: node
+    region: frankfurt
+    plan: free
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: FRONTEND_URL
         sync: false
       - key: SUPABASE_URL
         sync: false
-      - key: FRONTEND_URL
+      - key: SUPABASE_ANON_KEY
         sync: false
-      - key: NODE_ENV
+      - key: JWT_SECRET
         sync: false
-      region: frankfurt
-      buildCommand: npm ci && npm run build
-      startCommand: node dist/index.js
-      healthCheckPath: /health
-      autoDeployTrigger: commit
-      rootDir: .
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        sync: false
+      - key: SMTP_SECURE
+        sync: false
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASSWORD
+        sync: false
+      - key: SMTP_FROM
+        sync: false
