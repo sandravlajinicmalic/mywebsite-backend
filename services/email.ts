@@ -111,7 +111,7 @@ class EmailService {
       // Send email
       await this.sendEmail({
         to: email,
-        subject: 'Welcome to MyWebsite! 🎉',
+        subject: 'Welcome to MeowCrafts! 🎉',
         html,
       })
     } catch (error) {
@@ -135,7 +135,7 @@ class EmailService {
       // Send email
       await this.sendEmail({
         to: email,
-        subject: 'Account Deleted - MyWebsite',
+        subject: 'Account Deleted - MeowCrafts',
         html,
       })
     } catch (error) {
@@ -159,7 +159,7 @@ class EmailService {
       // Send email
       await this.sendEmail({
         to: email,
-        subject: 'Your Nickname - MyWebsite',
+        subject: 'Your Nickname - MeowCrafts',
         html,
       })
     } catch (error) {
