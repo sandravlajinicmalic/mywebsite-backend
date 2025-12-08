@@ -136,27 +136,18 @@ router.post('/message', async (req: Request, res: Response) => {
   try {
     const { message, sessionId, language } = req.body
 
-    console.log('[CHAT] Received message:', { message, sessionId, language })
-
     if (!message || typeof message !== 'string') {
-      console.log('[CHAT] Invalid message format')
       res.status(400).json({ error: 'Message is required' })
       return
     }
 
     // Sanitize message - remove non-text characters
     const sanitizedMessage = sanitizeMessage(message)
-    
-    // Check if message contains only text
-    if (!isTextOnly(message)) {
-      console.log('[CHAT] Message contains non-text characters, sanitized:', sanitizedMessage)
-    }
 
     // Use sanitized message if original contained non-text characters
     const finalMessage = sanitizedMessage.trim()
 
     if (!finalMessage || finalMessage.length === 0) {
-      console.log('[CHAT] Message is empty after sanitization')
       res.status(400).json({ 
         error: 'Message must contain only text characters',
         response: 'Sorry, message must contain only text characters (letters, numbers, spaces and basic punctuation).'
@@ -166,7 +157,6 @@ router.post('/message', async (req: Request, res: Response) => {
 
     // Check if message is requesting code, images, or non-text content
     if (isRequestingNonText(finalMessage)) {
-      console.log('[CHAT] Message is requesting non-text content (code/images/files)')
       res.json({
         response: 'Sorry, I can only provide text responses about cats. I cannot generate code, images, files or anything that is not plain text. Ask me a question about cats!',
         isAboutCats: false
@@ -176,7 +166,6 @@ router.post('/message', async (req: Request, res: Response) => {
 
     // Check if message is about cats
     if (!isAboutCats(finalMessage)) {
-      console.log('[CHAT] Message is not about cats')
       res.json({
         response: 'Ask me a question about cats, their behavior, health, grooming or anything related to cats.',
         isAboutCats: false
@@ -188,11 +177,8 @@ router.post('/message', async (req: Request, res: Response) => {
     const session = sessionId || 'default'
     let history = conversationHistory.get(session) || []
     
-    console.log('[CHAT] Session history length:', history.length)
-    
     // Check if OpenAI API key is configured
     if (!process.env.OPENAI_API_KEY) {
-      console.log('[CHAT] OpenAI API key not configured, using fallback response')
       res.json({
         response: 'Sorry, AI service is not configured. Please add OPENAI_API_KEY to the .env file.',
         isAboutCats: true
@@ -217,8 +203,6 @@ router.post('/message', async (req: Request, res: Response) => {
       const recentHistory = history.slice(-10)
       messages.push(...recentHistory)
 
-      console.log('[CHAT] Calling OpenAI API with', messages.length, 'messages (including system prompt)')
-
       // Call OpenAI API
       const completion = await openai.chat.completions.create({
         model: 'gpt-4o-mini', // Using gpt-4o-mini for better performance and lower cost
@@ -228,15 +212,12 @@ router.post('/message', async (req: Request, res: Response) => {
       })
 
       let assistantResponse = completion.choices[0]?.message?.content || 'Sorry, I could not generate a response. Please try again!'
-      
-      console.log('[CHAT] OpenAI response received:', assistantResponse.substring(0, 50) + '...')
 
       // Sanitize response - remove code blocks and ensure text only
       const sanitizedResponse = sanitizeResponse(assistantResponse)
       
       // If response was heavily modified (contains code blocks), use fallback
       if (sanitizedResponse.length < assistantResponse.length * 0.5 && assistantResponse.includes('```')) {
-        console.log('[CHAT] Response contained code blocks, using fallback')
         assistantResponse = 'Sorry, I can only provide text responses about cats. Ask me a question about cats!'
       } else {
         assistantResponse = sanitizedResponse || assistantResponse
@@ -262,7 +243,7 @@ router.post('/message', async (req: Request, res: Response) => {
         isAboutCats: true
       })
     } catch (error: any) {
-      console.error('[CHAT] OpenAI API error:', error)
+      console.error('OpenAI API error:', error)
       
       // Fallback response if API fails
       const fallbackResponse = 'Sorry, an error occurred while communicating with the AI service. Please try again in a few moments!'
@@ -273,7 +254,7 @@ router.post('/message', async (req: Request, res: Response) => {
       })
     }
   } catch (error) {
-    console.error('[CHAT] Error:', error)
+    console.error('Chat error:', error)
     res.status(500).json({ 
       error: 'Error communicating with chatbot',
       response: 'Sorry, an error occurred. Please try again!'

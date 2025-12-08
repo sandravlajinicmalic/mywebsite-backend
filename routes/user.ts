@@ -5,24 +5,7 @@ import { getUserDefaultAvatar } from '../utils/avatar.js'
 
 const router = express.Router()
 
-// Cache for tracking last log time per user (to throttle logging to once per minute)
-const lastLogTime = new Map<string, number>()
-const LOG_THROTTLE_MS = 60 * 1000 // 1 minute
-
-/**
- * Check if we should log for this user (throttle to once per minute)
- */
-const shouldLog = (userId: string): boolean => {
-  const now = Date.now()
-  const lastLog = lastLogTime.get(userId)
-  
-  if (!lastLog || (now - lastLog) >= LOG_THROTTLE_MS) {
-    lastLogTime.set(userId, now)
-    return true
-  }
-  
-  return false
-}
+// Logging throttling removed - no longer needed since we removed active rewards logging
 
 /**
  * Check if error is a connection/network error
@@ -164,21 +147,8 @@ router.get('/active-rewards', authenticateToken, async (req: AuthRequest, res: R
         }
       }
       
-      // Log active rewards (throttled to once per minute per user)
-      const activeRewardTypes = Object.keys(rewards)
-      if (activeRewardTypes.length > 0 && shouldLog(userId)) {
-        console.log('✅ Active rewards:', {
-          userId,
-          rewardTypes: activeRewardTypes,
-          rewards: activeRewardTypes.reduce((acc, type) => {
-            acc[type] = {
-              expiresAt: rewards[type].expiresAt,
-              createdAt: rewards[type].createdAt
-            }
-            return acc
-          }, {} as Record<string, any>)
-        })
-      }
+      // Log active rewards removed to reduce console noise
+      // (throttled logging was still too frequent due to multiple component calls)
     }
 
     // Always include avatar (either active or default)
@@ -280,15 +250,7 @@ router.get('/active-avatar', authenticateToken, async (req: AuthRequest, res: Re
         avatarPath = activeReward.reward_value || defaultAvatar
       }
 
-      // Log active avatar reward (throttled to once per minute per user)
-      if (shouldLog(userId)) {
-        console.log('✅ Active avatar reward:', {
-          userId,
-          avatar: avatarPath,
-          originalAvatar: defaultAvatar,
-          expiresAt: activeReward.expires_at
-        })
-      }
+      // Log active avatar reward removed to reduce console noise
 
       res.json({
         success: true,

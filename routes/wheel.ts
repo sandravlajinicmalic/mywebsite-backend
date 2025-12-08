@@ -123,8 +123,6 @@ router.post('/spin', authenticateToken, async (req: AuthRequest, res: Response, 
 
     if (insertError) throw insertError
 
-    console.log('🎰 Spin saved:', { userId, reward, spinId: newSpin.id })
-
     // Handle rewards that create active effects
     try {
       const rewardHandlers: Record<string, () => Promise<void>> = {
@@ -143,35 +141,28 @@ router.post('/spin', authenticateToken, async (req: AuthRequest, res: Response, 
               avatar: newAvatar,
               originalAvatar: defaultAvatar
             })
-            
-            console.log('🎉 Avatar reward activated:', { userId, reward, newAvatar, defaultAvatar })
           }
         },
         'Fancy Schmancy Nickname': async () => {
           await createActiveReward(userId, 'nickname', { style: 'cursive', fontSize: '1.5' })
-          console.log('🎉 Fancy nickname reward activated:', { userId, reward, style: 'cursive', fontSize: '1.5' })
         },
         'Royal Meowjesty': async () => {
           await createActiveReward(userId, 'nickname', { prefix: 'Royal Meowjesty' })
-          console.log('🎉 Royal nickname reward activated:', { userId, reward, prefix: 'Royal Meowjesty' })
         },
         'Chase the Yarn!': async () => {
           await createActiveReward(userId, 'yarn', { enabled: true })
-          console.log('🎉 Yarn reward activated:', { userId, reward })
         },
         'Paw-some Cursor': async () => {
           await createActiveReward(userId, 'cursor', { cursor: '/images/paw.png' })
-          console.log('🎉 Cursor reward activated:', { userId, reward, cursor: '/images/paw.png' })
         },
         'Color Catastrophe': async () => {
           await createActiveReward(userId, 'color', { enabled: true, swap: 'pink-blue' })
-          console.log('🎉 Color reward activated:', { userId, reward, swap: 'pink-blue' })
         },
         'Spin Again, Brave Soul': async () => {
-          console.log('🎉 Spin Again reward - user can spin immediately again:', { userId, reward })
+          // User can spin immediately again
         },
         'Total Cat-astrophe': async () => {
-          console.log('😹 Total Cat-astrophe - user got nothing:', { userId, reward })
+          // User got nothing
         }
       }
 

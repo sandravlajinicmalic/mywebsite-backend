@@ -33,21 +33,30 @@ async function getCurrentCatState(): Promise<CatStateData | null> {
 
 // Helper function to add log
 async function addLog(action: string, userName?: string): Promise<void> {
-  const { data, error } = await supabase
-    .from('cat_logs')
-    .insert([
-      {
-        action,
-        user_name: userName || 'System',
-        timestamp: new Date().toISOString()
-      }
-    ])
-    .select()
-    .single()
+  try {
+    const { data, error } = await supabase
+      .from('cat_logs')
+      .insert([
+        {
+          action,
+          user_name: userName || 'System',
+          timestamp: new Date().toISOString()
+        }
+      ])
+      .select()
+      .single()
 
-  if (!error && data) {
-    // Broadcast new log to all connected clients
-    io.emit('new-log', data)
+    if (error) {
+      console.error('Error adding log to database:', error)
+      return
+    }
+
+    if (data) {
+      // Broadcast new log to all connected clients
+      io.emit('new-log', data)
+    }
+  } catch (error) {
+    console.error('Exception in addLog:', error)
   }
 }
 

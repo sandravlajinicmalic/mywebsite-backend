@@ -19,9 +19,28 @@ const app: Express = express()
 const httpServer: HttpServer = createServer(app)
 const io = new Server(httpServer, {
   cors: {
-    origin: process.env.FRONTEND_URL || 'http://localhost:5173',
-    methods: ['GET', 'POST']
-  }
+    origin: (origin, callback) => {
+      const allowedOrigins = [
+        process.env.FRONTEND_URL || 'http://localhost:5173',
+        'http://localhost:5173',
+        'http://127.0.0.1:5173',
+        'http://localhost:3000' // Allow same origin
+      ]
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true)
+      } else {
+        callback(new Error('Not allowed by CORS'))
+      }
+    },
+    methods: ['GET', 'POST', 'OPTIONS'],
+    credentials: false, // Try without credentials
+    allowedHeaders: ['*']
+  },
+  transports: ['polling', 'websocket'], // Try polling first
+  allowEIO3: true,
+  pingTimeout: 60000,
+  pingInterval: 25000,
+  connectTimeout: 45000
 })
 
 // Middleware
@@ -60,7 +79,6 @@ async function initializeCatStateMachine() {
 
     if (selectError && selectError.code === 'PGRST116') {
       // No rows returned - need to create initial state
-      console.log('Initializing cat state...')
       const { data: newState, error: insertError } = await supabase
         .from('global_cat_state')
         .insert([
@@ -82,13 +100,10 @@ async function initializeCatStateMachine() {
         throw insertError
       }
 
-      console.log('Cat state created:', newState)
       await addLog('System: Cat initialized')
     } else if (selectError) {
       console.error('Error checking cat state:', selectError)
       throw selectError
-    } else {
-      console.log('Cat state already exists:', existingState)
     }
   } catch (error) {
     console.error('Failed to initialize cat state machine:', error)
@@ -233,10 +248,9 @@ function initializeCleanupJob(): void {
 
 // Socket.io connection handling
 io.on('connection', (socket: Socket) => {
-  console.log('User connected:', socket.id)
 
-  // Send current state on connection
-  getCurrentCatState().then((state) => {
+  // Send current state and logs on connection
+  getCurrentCatState().then(async (state) => {
     if (state) {
       socket.emit('cat-state-changed', { state: state.current })
       if (state.is_resting) {
@@ -245,6 +259,26 @@ io.on('connection', (socket: Socket) => {
           userName: state.rested_by_name
         })
       }
+    }
+    
+    // Also send initial logs on connection
+    try {
+      const { data: logs, error } = await supabase
+        .from('cat_logs')
+        .select('*')
+        .order('timestamp', { ascending: false })
+        .limit(50)
+
+      if (error) {
+        console.error('Error fetching logs on connection:', error)
+        socket.emit('initial-logs', [])
+        return
+      }
+
+      socket.emit('initial-logs', logs || [])
+    } catch (error) {
+      console.error('Exception sending initial logs on connection:', error)
+      socket.emit('initial-logs', [])
     }
   })
 
@@ -334,7 +368,11 @@ io.on('connection', (socket: Socket) => {
   })
 
   socket.on('disconnect', () => {
-    console.log('User disconnected:', socket.id)
+    // Handle disconnect if needed
+  })
+  
+  socket.on('error', (error) => {
+    console.error('Socket error:', error)
   })
 })
 
