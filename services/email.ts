@@ -131,12 +131,64 @@ class EmailService {
       throw new Error('RESEND_API_KEY environment variable is not set')
     }
 
-    const fromEmail = process.env.RESEND_FROM || process.env.SMTP_FROM || process.env.SMTP_USER || 'onboarding@resend.dev'
+    // Get from email, but use onboarding@resend.dev if it's from a non-verified domain (like gmail.com)
+    let fromEmail = process.env.RESEND_FROM || process.env.SMTP_FROM || process.env.SMTP_USER || 'onboarding@resend.dev'
+    
+    // Check if email is from a common non-verifiable domain (gmail, yahoo, outlook, etc.)
+    const nonVerifiableDomains = ['gmail.com', 'yahoo.com', 'outlook.com', 'hotmail.com', 'icloud.com', 'aol.com']
+    const emailDomain = fromEmail.split('@')[1]?.toLowerCase()
+    
+    if (emailDomain && nonVerifiableDomains.includes(emailDomain)) {
+      console.log(`⚠️  Email domain ${emailDomain} is not verifiable in Resend, using onboarding@resend.dev`)
+      fromEmail = 'onboarding@resend.dev'
+    }
     
     console.log('📧 Sending email via Resend API...')
     console.log('From:', fromEmail)
     console.log('To:', options.to)
     console.log('Subject:', options.subject)
+
+    const response = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${resendApiKey}`,
+      },
+      body: JSON.stringify({
+        from: fromEmail,
+        to: options.to,
+        subject: options.subject,
+        html: options.html,
+      }),
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({})) as { message?: string; name?: string }
+      
+      // If domain verification error, try with onboarding@resend.dev
+      if (response.status === 403 && errorData.message?.includes('domain is not verified')) {
+        console.log('⚠️  Domain verification error, retrying with onboarding@resend.dev...')
+        return this.sendEmailViaResendWithFrom(options, 'onboarding@resend.dev')
+      }
+      
+      throw new Error(`Resend API error: ${response.status} ${response.statusText} - ${JSON.stringify(errorData)}`)
+    }
+
+    const data = await response.json() as { id?: string }
+    console.log(`✓ Email sent successfully via Resend to ${options.to}`)
+    if (data.id) {
+      console.log('Resend ID:', data.id)
+    }
+  }
+
+  /**
+   * Helper method to send email with specific from address
+   */
+  private async sendEmailViaResendWithFrom(options: EmailOptions, fromEmail: string): Promise<void> {
+    const resendApiKey = process.env.RESEND_API_KEY
+    if (!resendApiKey) {
+      throw new Error('RESEND_API_KEY environment variable is not set')
+    }
 
     const response = await fetch('https://api.resend.com/emails', {
       method: 'POST',
