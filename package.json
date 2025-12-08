@@ -5,6 +5,7 @@
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc",
+    "postbuild": "test -f dist/index.js || (echo 'ERROR: dist/index.js not found after build!' && exit 1)",
     "start": "node dist/index.js",
     "dev": "tsx watch index.ts",
     "test": "echo \"Error: no test specified\" && exit 1"
