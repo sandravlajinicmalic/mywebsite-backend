@@ -15,18 +15,28 @@ import { supabase } from './config/supabase.js'
 // Load environment variables
 dotenv.config()
 
+// Normalize FRONTEND_URL to remove trailing slash
+const normalizeUrl = (url: string | undefined): string => {
+  if (!url) return 'http://localhost:5173'
+  return url.replace(/\/+$/, '') // Remove trailing slashes
+}
+
+const frontendUrl = normalizeUrl(process.env.FRONTEND_URL)
+
 const app: Express = express()
 const httpServer: HttpServer = createServer(app)
 const io = new Server(httpServer, {
   cors: {
     origin: (origin, callback) => {
       const allowedOrigins = [
-        process.env.FRONTEND_URL || 'http://localhost:5173',
+        frontendUrl,
         'http://localhost:5173',
         'http://127.0.0.1:5173',
         'http://localhost:3000' // Allow same origin
       ]
-      if (!origin || allowedOrigins.includes(origin)) {
+      // Normalize origin for comparison (remove trailing slash)
+      const normalizedOrigin = origin ? normalizeUrl(origin) : null
+      if (!normalizedOrigin || allowedOrigins.includes(normalizedOrigin)) {
         callback(null, true)
       } else {
         callback(new Error('Not allowed by CORS'))
@@ -45,7 +55,15 @@ const io = new Server(httpServer, {
 
 // Middleware
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  origin: (origin, callback) => {
+    // Normalize origin for comparison
+    const normalizedOrigin = origin ? normalizeUrl(origin) : null
+    if (!normalizedOrigin || normalizedOrigin === frontendUrl || normalizedOrigin === 'http://localhost:5173') {
+      callback(null, true)
+    } else {
+      callback(new Error('Not allowed by CORS'))
+    }
+  },
   credentials: true
 }))
 app.use(express.json())
