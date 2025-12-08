@@ -104,7 +104,7 @@ router.post('/login', async (req: Request<{}, {}, LoginRequestBody>, res: Respon
     } else if (!existingUserByEmail && existingUserByNickname) {
       // Nickname exists, but email does not - attempt to create new user with taken nickname
       res.status(400).json({
-        error: 'Nickname already exists',
+        error: 'This nickname is already taken',
         errors: {
           nickname: 'This nickname is already taken'
         }
@@ -126,29 +126,7 @@ router.post('/login', async (req: Request<{}, {}, LoginRequestBody>, res: Respon
       if (updateError) throw updateError
       user = updatedUser as User
     } else {
-      // Create new user - check if email or nickname already exist
-      // (This should already be checked above, but we add an additional check for security)
-      if (existingUserByEmail) {
-        res.status(400).json({
-          error: 'Email already exists',
-          errors: {
-            email: 'This email is already taken'
-          }
-        })
-        return
-      }
-      
-      if (existingUserByNickname) {
-        res.status(400).json({
-          error: 'Nickname already exists',
-          errors: {
-            nickname: 'This nickname is already taken'
-          }
-        })
-        return
-      }
-
-      // Create new user
+      // Create new user (both email and nickname don't exist - already checked above)
       const { data: newUser, error: insertError } = await supabase
         .from('users')
         .insert([{ email, nickname }])
