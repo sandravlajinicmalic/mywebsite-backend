@@ -57,13 +57,6 @@ function sanitizeMessage(message: string): string {
   return message.replace(/[^\p{L}\p{N}\s.,!?;:'"()-]/gu, '')
 }
 
-// Helper function to check if message contains only text
-function isTextOnly(message: string): boolean {
-  // Check if message contains only allowed characters
-  const sanitized = sanitizeMessage(message)
-  return sanitized === message
-}
-
 // Helper function to check if message is requesting code, images, or non-text content
 function isRequestingNonText(message: string): boolean {
   const lowerMessage = message.toLowerCase()

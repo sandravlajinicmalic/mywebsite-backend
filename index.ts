@@ -71,7 +71,7 @@ let cleanupInterval: NodeJS.Timeout | null = null
 async function initializeCatStateMachine() {
   try {
     // Initialize cat state if it doesn't exist
-    const { data: existingState, error: selectError } = await supabase
+    const { data: _existingState, error: selectError } = await supabase
       .from('global_cat_state')
       .select('*')
       .eq('id', 1)
@@ -79,7 +79,7 @@ async function initializeCatStateMachine() {
 
     if (selectError && selectError.code === 'PGRST116') {
       // No rows returned - need to create initial state
-      const { data: newState, error: insertError } = await supabase
+      const { data: _newState, error: insertError } = await supabase
         .from('global_cat_state')
         .insert([
           {
