@@ -4,8 +4,9 @@ services:
     env: node
     region: frankfurt
     plan: free
-    buildCommand: npm install && npm run build
-    startCommand: npm start
+    rootDir: .
+    buildCommand: npm ci && npm run build
+    startCommand: node dist/index.js
     healthCheckPath: /health
     envVars:
       - key: NODE_ENV
