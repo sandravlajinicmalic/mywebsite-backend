@@ -35,7 +35,7 @@ class EmailService {
       throw new Error('SMTP configuration is incomplete. Please set SMTP_USER and SMTP_PASSWORD environment variables.')
     }
 
-    console.log('📧 Initializing email transporter...')
+    console.log('📧 Initializing SMTP transporter (fallback for local development)...')
     console.log('SMTP Host:', smtpHost)
     console.log('SMTP Port:', smtpPort)
     console.log('SMTP Secure:', smtpSecure)
@@ -60,20 +60,23 @@ class EmailService {
       logger: process.env.NODE_ENV === 'development',
     })
 
-    // Verify connection
-    try {
-      await this.transporter.verify()
-      console.log('✓ SMTP connection verified successfully')
-    } catch (error: any) {
-      console.error('❌ SMTP connection verification failed!')
-      console.error('Error details:', {
-        code: error.code,
-        command: error.command,
-        response: error.response,
-        responseCode: error.responseCode,
-        message: error.message,
-      })
-      throw new Error(`SMTP connection failed: ${error.message}`)
+    // Verify connection (skip on production/Render to avoid timeout issues)
+    if (process.env.NODE_ENV === 'development') {
+      try {
+        await this.transporter.verify()
+        console.log('✓ SMTP connection verified successfully')
+      } catch (error: any) {
+        console.error('❌ SMTP connection verification failed!')
+        console.error('Error details:', {
+          code: error.code,
+          command: error.command,
+          response: error.response,
+          responseCode: error.responseCode,
+          message: error.message,
+        })
+        // Don't throw in development, just warn
+        console.warn('⚠️  SMTP verification failed, but will attempt to send anyway')
+      }
     }
 
     return this.transporter
@@ -120,11 +123,64 @@ class EmailService {
   }
 
   /**
+   * Send email using Resend API (preferred for Render)
+   */
+  private async sendEmailViaResend(options: EmailOptions): Promise<void> {
+    const resendApiKey = process.env.RESEND_API_KEY
+    if (!resendApiKey) {
+      throw new Error('RESEND_API_KEY environment variable is not set')
+    }
+
+    const fromEmail = process.env.RESEND_FROM || process.env.SMTP_FROM || process.env.SMTP_USER || 'onboarding@resend.dev'
+    
+    console.log('📧 Sending email via Resend API...')
+    console.log('From:', fromEmail)
+    console.log('To:', options.to)
+    console.log('Subject:', options.subject)
+
+    const response = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${resendApiKey}`,
+      },
+      body: JSON.stringify({
+        from: fromEmail,
+        to: options.to,
+        subject: options.subject,
+        html: options.html,
+      }),
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      throw new Error(`Resend API error: ${response.status} ${response.statusText} - ${JSON.stringify(errorData)}`)
+    }
+
+    const data = await response.json()
+    console.log(`✓ Email sent successfully via Resend to ${options.to}`)
+    console.log('Resend ID:', data.id)
+  }
+
+  /**
    * Send email
    */
   async sendEmail(options: EmailOptions): Promise<void> {
     try {
       console.log(`📧 Attempting to send email to ${options.to}...`)
+      
+      // Try Resend API first (works on Render)
+      if (process.env.RESEND_API_KEY) {
+        try {
+          await this.sendEmailViaResend(options)
+          return
+        } catch (resendError: any) {
+          console.error('❌ Resend API failed, falling back to SMTP:', resendError.message)
+          // Fall through to SMTP
+        }
+      }
+
+      // Fallback to SMTP (for local development)
       const transporter = await this.initializeTransporter()
 
       const fromEmail = process.env.SMTP_FROM || process.env.SMTP_USER
