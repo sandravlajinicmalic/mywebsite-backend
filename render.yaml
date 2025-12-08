@@ -2,7 +2,7 @@ services:
   - type: web
     name: mywebsite-backend
     env: node
-    region: virginia
+    region: frankfurt
     plan: free
     buildCommand: npm ci --include=dev && npm run build
     startCommand: npm start
