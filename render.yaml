@@ -2,9 +2,9 @@ services:
   - type: web
     name: mywebsite-backend
     env: node
-    region: frankfurt
+    region: virginia
     plan: free
-    buildCommand: npm ci && npm run build && echo "=== Build verification ===" && pwd && ls -la && echo "=== Checking dist ===" && ls -la dist/ && echo "=== Verifying dist/index.js ===" && test -f dist/index.js && echo "✓ dist/index.js exists!" || (echo "✗ ERROR: dist/index.js NOT FOUND!" && exit 1)
+    buildCommand: npm ci --include=dev && npm run build
     startCommand: npm start
     healthCheckPath: /health
     envVars:
