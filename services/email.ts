@@ -171,6 +171,13 @@ class EmailService {
         return this.sendEmailViaResendWithFrom(options, 'onboarding@resend.dev')
       }
       
+      // If test email restriction (can only send to verified email in test mode)
+      if (response.status === 403 && errorData.message?.includes('testing emails')) {
+        const errorMsg = `Resend API error: Domain is pending verification. You can only send emails to your verified email address in test mode. Please wait for domain verification or verify your domain at https://resend.com/domains`
+        console.error('❌', errorMsg)
+        throw new Error(errorMsg)
+      }
+      
       throw new Error(`Resend API error: ${response.status} ${response.statusText} - ${JSON.stringify(errorData)}`)
     }
 
@@ -229,12 +236,18 @@ class EmailService {
           await this.sendEmailViaResend(options)
           return
         } catch (resendError: any) {
-          console.error('❌ Resend API failed, falling back to SMTP:', resendError.message)
-          // Fall through to SMTP
+          // Don't fallback to SMTP on Render (SMTP is blocked)
+          // Only use SMTP fallback in local development
+          if (process.env.NODE_ENV === 'production' || process.env.RENDER) {
+            console.error('❌ Resend API failed on Render/production. SMTP is not available. Error:', resendError.message)
+            throw resendError // Re-throw to prevent SMTP fallback
+          }
+          console.error('❌ Resend API failed, falling back to SMTP (local dev only):', resendError.message)
+          // Fall through to SMTP only in local development
         }
       }
 
-      // Fallback to SMTP (for local development)
+      // Fallback to SMTP (for local development only)
       const transporter = await this.initializeTransporter()
 
       const fromEmail = process.env.SMTP_FROM || process.env.SMTP_USER
