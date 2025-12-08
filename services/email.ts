@@ -157,9 +157,11 @@ class EmailService {
       throw new Error(`Resend API error: ${response.status} ${response.statusText} - ${JSON.stringify(errorData)}`)
     }
 
-    const data = await response.json()
+    const data = await response.json() as { id?: string }
     console.log(`✓ Email sent successfully via Resend to ${options.to}`)
-    console.log('Resend ID:', data.id)
+    if (data.id) {
+      console.log('Resend ID:', data.id)
+    }
   }
 
   /**
