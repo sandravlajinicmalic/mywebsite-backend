@@ -142,7 +142,11 @@ FRONTEND_URL=http://localhost:5173
 
 # Supabase Configuration
 SUPABASE_URL=your_supabase_project_url
-SUPABASE_ANON_KEY=your_supabase_anon_key
+# Backend requires SERVICE_ROLE_KEY to bypass RLS (Row Level Security)
+# Get this from Supabase Dashboard → Settings → API → service_role key (secret)
+SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
+# Optional: ANON_KEY can be used as fallback, but SERVICE_ROLE_KEY is required for RLS
+# SUPABASE_ANON_KEY=your_supabase_anon_key
 
 # JWT Secret (generate a strong random string for production)
 JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
@@ -180,7 +184,10 @@ Copy the output to `JWT_SECRET` in your `.env` file.
 3. Navigate to **Settings** → **API**
 4. Copy the following values:
    - **Project URL** → This is your `SUPABASE_URL`
-   - **anon/public key** → This is your `SUPABASE_ANON_KEY`
+   - **service_role key (secret)** → This is your `SUPABASE_SERVICE_ROLE_KEY`
+     - ⚠️ **IMPORTANT**: This key bypasses Row Level Security (RLS)
+     - 🔒 **NEVER** expose this key in frontend code or client-side
+     - ✅ Safe to use in backend/server-side code only
 
 ### Step 2: Create Database Tables
 

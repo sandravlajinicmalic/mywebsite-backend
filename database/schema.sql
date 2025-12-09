@@ -67,18 +67,155 @@ CREATE INDEX IF NOT EXISTS idx_user_active_rewards_user_id ON user_active_reward
 CREATE INDEX IF NOT EXISTS idx_user_active_rewards_expires_at ON user_active_rewards(expires_at);
 CREATE INDEX IF NOT EXISTS idx_user_active_rewards_user_type ON user_active_rewards(user_id, reward_type);
 
--- RLS (Row Level Security) policies - opcionalno, za dodatnu sigurnost
--- ALTER TABLE users ENABLE ROW LEVEL SECURITY;
--- ALTER TABLE contact_messages ENABLE ROW LEVEL SECURITY;
+-- ============================================================================
+-- RLS (Row Level Security) - Omogućavanje i kreiranje politika
+-- ============================================================================
 
--- Policy za users - korisnici mogu vidjeti samo svoje podatke
--- CREATE POLICY "Users can view own data" ON users
---   FOR SELECT USING (auth.uid() = id);
+-- Omogući RLS na svim tabelama
+ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.contact_messages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.global_cat_state ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.cat_logs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.wheel_spins ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.user_active_rewards ENABLE ROW LEVEL SECURITY;
 
--- Policy za contact_messages - svi mogu insertati, ali samo admin može čitati
--- CREATE POLICY "Anyone can insert contact messages" ON contact_messages
---   FOR INSERT WITH CHECK (true);
+-- ============================================================================
+-- RLS Politike
+-- ============================================================================
 
--- CREATE POLICY "Only admins can view contact messages" ON contact_messages
---   FOR SELECT USING (false); -- Promijeni ovo ako imaš admin role sistem
+-- ----------------------------------------------------------------------------
+-- 1. USERS tabela
+-- ----------------------------------------------------------------------------
+-- Korisnici mogu da vide i ažuriraju samo svoje podatke
+-- INSERT i DELETE se obično rade kroz backend (service_role)
+
+CREATE POLICY "Users can view own data" ON public.users
+  FOR SELECT
+  TO authenticated
+  USING ((SELECT auth.uid()) = id);
+
+CREATE POLICY "Users can update own data" ON public.users
+  FOR UPDATE
+  TO authenticated
+  USING ((SELECT auth.uid()) = id)
+  WITH CHECK ((SELECT auth.uid()) = id);
+
+-- ----------------------------------------------------------------------------
+-- 2. CONTACT_MESSAGES tabela
+-- ----------------------------------------------------------------------------
+-- Svi mogu slati poruke, ali samo backend može čitati/ažurirati/brisati
+-- (Kontakt poruke su privatne - svi korisnici imaju jednaka prava)
+
+CREATE POLICY "Anyone can insert contact messages" ON public.contact_messages
+  FOR INSERT
+  TO anon, authenticated
+  WITH CHECK (true);
+
+CREATE POLICY "Backend only can view contact messages" ON public.contact_messages
+  FOR SELECT
+  TO authenticated
+  USING (false);
+
+CREATE POLICY "Backend only can update contact messages" ON public.contact_messages
+  FOR UPDATE
+  TO authenticated
+  USING (false);
+
+CREATE POLICY "Backend only can delete contact messages" ON public.contact_messages
+  FOR DELETE
+  TO authenticated
+  USING (false);
+
+-- ----------------------------------------------------------------------------
+-- 3. GLOBAL_CAT_STATE tabela
+-- ----------------------------------------------------------------------------
+-- Svi mogu čitati, autentifikovani korisnici mogu ažurirati
+-- (Single-row tabela za globalno stanje mačke)
+
+CREATE POLICY "Anyone can read global cat state" ON public.global_cat_state
+  FOR SELECT
+  TO anon, authenticated
+  USING (true);
+
+CREATE POLICY "Authenticated users can update global cat state" ON public.global_cat_state
+  FOR UPDATE
+  TO authenticated
+  USING (true)
+  WITH CHECK (true);
+
+-- ----------------------------------------------------------------------------
+-- 4. CAT_LOGS tabela
+-- ----------------------------------------------------------------------------
+-- Svi mogu čitati logove, autentifikovani korisnici mogu dodavati
+
+CREATE POLICY "Anyone can read cat logs" ON public.cat_logs
+  FOR SELECT
+  TO anon, authenticated
+  USING (true);
+
+CREATE POLICY "Authenticated users can insert cat logs" ON public.cat_logs
+  FOR INSERT
+  TO authenticated
+  WITH CHECK (true);
+
+-- ----------------------------------------------------------------------------
+-- 5. WHEEL_SPINS tabela
+-- ----------------------------------------------------------------------------
+-- Korisnici mogu da vide i upravljaju samo svojim spinovima
+
+CREATE POLICY "Users can view own wheel spins" ON public.wheel_spins
+  FOR SELECT
+  TO authenticated
+  USING ((SELECT auth.uid()) = user_id);
+
+CREATE POLICY "Users can insert own wheel spins" ON public.wheel_spins
+  FOR INSERT
+  TO authenticated
+  WITH CHECK ((SELECT auth.uid()) = user_id);
+
+CREATE POLICY "Users can update own wheel spins" ON public.wheel_spins
+  FOR UPDATE
+  TO authenticated
+  USING ((SELECT auth.uid()) = user_id)
+  WITH CHECK ((SELECT auth.uid()) = user_id);
+
+CREATE POLICY "Users can delete own wheel spins" ON public.wheel_spins
+  FOR DELETE
+  TO authenticated
+  USING ((SELECT auth.uid()) = user_id);
+
+-- ----------------------------------------------------------------------------
+-- 6. USER_ACTIVE_REWARDS tabela
+-- ----------------------------------------------------------------------------
+-- Korisnici mogu da vide i upravljaju samo svojim nagradama
+
+CREATE POLICY "Users can view own active rewards" ON public.user_active_rewards
+  FOR SELECT
+  TO authenticated
+  USING ((SELECT auth.uid()) = user_id);
+
+CREATE POLICY "Users can insert own active rewards" ON public.user_active_rewards
+  FOR INSERT
+  TO authenticated
+  WITH CHECK ((SELECT auth.uid()) = user_id);
+
+CREATE POLICY "Users can update own active rewards" ON public.user_active_rewards
+  FOR UPDATE
+  TO authenticated
+  USING ((SELECT auth.uid()) = user_id)
+  WITH CHECK ((SELECT auth.uid()) = user_id);
+
+CREATE POLICY "Users can delete own active rewards" ON public.user_active_rewards
+  FOR DELETE
+  TO authenticated
+  USING ((SELECT auth.uid()) = user_id);
+
+-- ============================================================================
+-- Napomene:
+-- ============================================================================
+-- - Backend procesi koji koriste service_role key zaobilaze RLS
+-- - Ovo je namerno i potrebno za registraciju korisnika, čitanje kontakt
+--   poruka, i background jobove
+-- - NIKADA ne izlažite service_role key u frontend kodu!
+-- - Svi autentifikovani korisnici imaju jednaka prava (nema admin sistema)
 
