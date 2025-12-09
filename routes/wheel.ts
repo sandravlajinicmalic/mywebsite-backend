@@ -123,6 +123,16 @@ router.post('/spin', authenticateToken, async (req: AuthRequest, res: Response, 
 
     if (insertError) throw insertError
 
+    // Get user info for logging
+    const { data: userData } = await supabase
+      .from('users')
+      .select('nickname')
+      .eq('id', userId)
+      .single()
+
+    const userName = userData?.nickname || userId
+    console.log(`🎁 Reward received: ${userName} won "${reward}"`)
+
     // Handle rewards that create active effects
     try {
       const rewardHandlers: Record<string, () => Promise<void>> = {

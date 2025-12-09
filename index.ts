@@ -354,6 +354,7 @@ io.on('connection', (socket: Socket) => {
       }
 
       // Success - broadcast to all clients
+      console.log(`😴 Cat put to sleep by: ${data.userName}`)
       await addLog(`${data.userName}: Put cat to sleep`)
       io.emit('cat-resting', {
         restUntil: restEndTime.toISOString(),
