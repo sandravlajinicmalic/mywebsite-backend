@@ -847,11 +847,17 @@ mywebsite-backend/
 ├── utils/
 │   └── avatar.ts                # Avatar generation utilities
 ├── dist/                        # Compiled JavaScript (generated)
+├── .ebextensions/               # Elastic Beanstalk configuration
+│   ├── 01-nodecommand.config    # Environment variables & health check
+│   ├── 02-nginx.config          # Nginx proxy & CORS
+│   ├── 03-websocket.config      # WebSocket configuration
+│   └── 04-cors.config           # CORS settings
+├── .ebignore                    # Files excluded from deployment
+├── .elasticbeanstalk/           # EB CLI configuration
+│   └── config.yml               # EB environment config
 ├── index.ts                     # Main server file
 ├── tsconfig.json                # TypeScript configuration
 ├── package.json                 # Dependencies and scripts
-├── render.yaml                  # Render.com deployment config
-├── RENDER_DEPLOYMENT.md         # Deployment documentation
 └── README.md                    # This file
 ```
 
@@ -865,7 +871,7 @@ mywebsite-backend/
 | `NODE_ENV` | Environment (development/production) | No | `development` |
 | `FRONTEND_URL` | Frontend URL for CORS | Yes | - |
 | `SUPABASE_URL` | Supabase project URL | Yes | - |
-| `SUPABASE_ANON_KEY` | Supabase anonymous key | Yes | - |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role key (bypasses RLS) | Yes | - |
 | `JWT_SECRET` | Secret for JWT token signing | Yes | - |
 | `OPENAI_API_KEY` | OpenAI API key for chatbot | Yes | - |
 | `SMTP_HOST` | SMTP server host | Yes | - |
@@ -966,9 +972,10 @@ Errors are logged to console with:
 
 ### CORS
 
-- Configured to allow only frontend URL
+- Configured to allow frontend URL and Amplify domains
 - Credentials support enabled
-- Specific origin whitelist
+- Automatic origin whitelist for `*.amplifyapp.com`
+- Detailed logging for CORS debugging
 
 ### Environment Variables
 
@@ -986,30 +993,93 @@ Errors are logged to console with:
 
 ## 🚀 Deployment
 
-### Render.com
+### AWS Elastic Beanstalk
 
-The project includes `render.yaml` for Render.com deployment.
+This backend is deployed on AWS Elastic Beanstalk.
 
-See [RENDER_DEPLOYMENT.md](./RENDER_DEPLOYMENT.md) for detailed deployment instructions.
+#### Quick Deployment
 
-### Environment Variables
+```bash
+# Build and deploy
+npm run deploy
 
-Set all required environment variables in your deployment platform:
-- Supabase credentials
-- JWT secret
-- OpenAI API key
-- SMTP credentials
-- Frontend URL
+# Or separately:
+npm run build
+eb deploy
 
-### Build Process
+# Check logs
+eb logs
 
-1. Install dependencies: `npm install`
-2. Build TypeScript: `npm run build`
-3. Start server: `npm start`
+# Check health
+eb health
+```
 
-### Health Check
+#### Initial Setup (First Time Only)
 
-Deployment platforms can use `/health` endpoint for health checks.
+```bash
+# Install EB CLI
+pip3 install awsebcli
+
+# Configure AWS credentials
+aws configure
+
+# Initialize EB
+eb init
+
+# Create environment
+eb create meowcrafts-backend-prod
+```
+
+#### Environment Variables
+
+Set all required environment variables in AWS Elastic Beanstalk Console:
+- `NODE_ENV=production`
+- `PORT=8080`
+- `FRONTEND_URL=https://your-frontend-domain.com`
+- `SUPABASE_URL=your-supabase-url`
+- `SUPABASE_SERVICE_ROLE_KEY=your-service-role-key`
+- `JWT_SECRET=your-jwt-secret`
+- `OPENAI_API_KEY=your-openai-key`
+- `SMTP_HOST=your-smtp-host`
+- `SMTP_PORT=587`
+- `SMTP_SECURE=false`
+- `SMTP_USER=your-smtp-user`
+- `SMTP_PASSWORD=your-smtp-password`
+- `SMTP_FROM=your-email@example.com`
+
+#### Custom Domain Setup
+
+1. **Create SSL certificate** in AWS Certificate Manager (ACM) for `api.yourdomain.com`
+2. **Configure DNS** in Route 53: Add CNAME record pointing to Elastic Beanstalk URL
+3. **Add HTTPS listener** in Elastic Beanstalk: Port 443, HTTPS protocol, select SSL certificate
+4. **Update frontend** environment variables to use `https://api.yourdomain.com`
+
+#### Build Process
+
+The deployment process:
+1. TypeScript is compiled locally before deployment (`npm run build`)
+2. Compiled `dist/` folder is deployed to AWS
+3. Server starts with `npm start` (runs `node dist/index.js`)
+
+#### Health Check
+
+Elastic Beanstalk uses `/health` endpoint for health checks. The endpoint returns:
+```json
+{
+  "status": "ok",
+  "message": "Server is running"
+}
+```
+
+#### Configuration Files
+
+- `.ebextensions/` - Elastic Beanstalk configuration files
+  - `01-nodecommand.config` - Environment variables and health check
+  - `02-nginx.config` - Nginx proxy configuration with CORS support
+  - `03-websocket.config` - WebSocket/Socket.io configuration
+  - `04-cors.config` - CORS configuration
+- `.ebignore` - Files to exclude from deployment (similar to .gitignore)
+- `.elasticbeanstalk/config.yml` - EB CLI configuration
 
 ---
 
@@ -1062,7 +1132,6 @@ router.get('/endpoint', newMiddleware, handler)
 - [Database Schema Documentation](./database/SUPABASE_DATABASE_SCHEMA.md)
 - [Wheel of Fortune Documentation](../mywebsite-frontend/WHEEL_OF_FORTUNE_DOCUMENTATION.md)
 - [SmartChat Documentation](../mywebsite-frontend/SMARTCHAT_DOCUMENTATION.md)
-- [Render Deployment Guide](./RENDER_DEPLOYMENT.md)
 
 ---
 

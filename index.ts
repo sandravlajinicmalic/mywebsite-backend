@@ -23,28 +23,50 @@ const normalizeUrl = (url: string | undefined): string => {
 
 const frontendUrl = normalizeUrl(process.env.FRONTEND_URL)
 
+// CORS origin checker
+const isOriginAllowed = (origin: string | undefined): boolean => {
+  if (!origin) return true // Allow requests with no origin (like mobile apps or curl)
+  
+  const normalizedOrigin = normalizeUrl(origin)
+  
+  // Allowed origins list
+  const allowedOrigins = [
+    frontendUrl,
+    'http://localhost:5173',
+    'http://127.0.0.1:5173',
+    'http://localhost:3000' // Allow same origin
+  ]
+  
+  // Check exact match
+  if (allowedOrigins.includes(normalizedOrigin)) {
+    return true
+  }
+  
+  // Allow all Amplify domains (*.amplifyapp.com)
+  if (normalizedOrigin.includes('.amplifyapp.com')) {
+    console.log(`✅ Allowing Amplify origin: ${normalizedOrigin}`)
+    return true
+  }
+  
+  console.log(`❌ CORS blocked origin: ${normalizedOrigin}`)
+  console.log(`   Allowed origins: ${allowedOrigins.join(', ')}`)
+  return false
+}
+
 const app: Express = express()
 const httpServer: HttpServer = createServer(app)
 const io = new Server(httpServer, {
   cors: {
     origin: (origin, callback) => {
-      const allowedOrigins = [
-        frontendUrl,
-        'http://localhost:5173',
-        'http://127.0.0.1:5173',
-        'http://localhost:3000' // Allow same origin
-      ]
-      // Normalize origin for comparison (remove trailing slash)
-      const normalizedOrigin = origin ? normalizeUrl(origin) : null
-      if (!normalizedOrigin || allowedOrigins.includes(normalizedOrigin)) {
+      if (isOriginAllowed(origin)) {
         callback(null, true)
       } else {
         callback(new Error('Not allowed by CORS'))
       }
     },
-    methods: ['GET', 'POST', 'OPTIONS'],
-    credentials: false, // Try without credentials
-    allowedHeaders: ['*']
+    methods: ['GET', 'POST', 'OPTIONS', 'PUT', 'DELETE'],
+    credentials: true,
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
   },
   transports: ['polling', 'websocket'], // Try polling first
   allowEIO3: true,
@@ -53,21 +75,35 @@ const io = new Server(httpServer, {
   connectTimeout: 45000
 })
 
-// Middleware
+// Middleware - CORS with detailed logging
 app.use(cors({
   origin: (origin, callback) => {
-    // Normalize origin for comparison
-    const normalizedOrigin = origin ? normalizeUrl(origin) : null
-    if (!normalizedOrigin || normalizedOrigin === frontendUrl || normalizedOrigin === 'http://localhost:5173') {
+    console.log(`🔍 CORS check - Origin: ${origin || 'undefined'}`)
+    if (isOriginAllowed(origin)) {
+      console.log(`✅ CORS allowed for origin: ${origin || 'undefined'}`)
       callback(null, true)
     } else {
+      console.log(`❌ CORS blocked for origin: ${origin || 'undefined'}`)
       callback(new Error('Not allowed by CORS'))
     }
   },
-  credentials: true
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 }))
+
+// Log all incoming requests
+app.use((req, _res, next) => {
+  console.log(`📥 ${req.method} ${req.path} - Origin: ${req.headers.origin || 'none'}`)
+  next()
+})
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
+
+// Root endpoint
+app.get('/', (_req: Request, res: Response) => {
+  res.json({ status: 'ok', message: 'Backend API is running', version: '1.0.0' })
+})
 
 // Health check endpoint
 app.get('/health', (_req: Request, res: Response) => {
@@ -398,7 +434,7 @@ io.on('connection', (socket: Socket) => {
 // Error handling middleware (must be last)
 app.use(errorHandler)
 
-const PORT = process.env.PORT || 3000
+const PORT = process.env.PORT || 8080
 
 httpServer.listen(PORT, async () => {
   console.log(`Server is running on port ${PORT}`)

@@ -35,7 +35,7 @@ class EmailService {
       throw new Error('SMTP configuration is incomplete. Please set SMTP_USER and SMTP_PASSWORD environment variables.')
     }
 
-    console.log('📧 Initializing SMTP transporter (fallback for local development)...')
+    console.log('📧 Initializing SMTP transporter...')
     console.log('SMTP Host:', smtpHost)
     console.log('SMTP Port:', smtpPort)
     console.log('SMTP Secure:', smtpSecure)
@@ -60,7 +60,7 @@ class EmailService {
       logger: process.env.NODE_ENV === 'development',
     })
 
-    // Verify connection (skip on production/Render to avoid timeout issues)
+    // Verify connection (skip on production to avoid timeout issues)
     if (process.env.NODE_ENV === 'development') {
       try {
         await this.transporter.verify()
@@ -123,131 +123,12 @@ class EmailService {
   }
 
   /**
-   * Send email using Resend API (preferred for Render)
-   */
-  private async sendEmailViaResend(options: EmailOptions): Promise<void> {
-    const resendApiKey = process.env.RESEND_API_KEY
-    if (!resendApiKey) {
-      throw new Error('RESEND_API_KEY environment variable is not set')
-    }
-
-    // Get from email, but use onboarding@resend.dev if it's from a non-verified domain (like gmail.com)
-    let fromEmail = process.env.RESEND_FROM || process.env.SMTP_FROM || process.env.SMTP_USER || 'onboarding@resend.dev'
-    
-    // Check if email is from a common non-verifiable domain (gmail, yahoo, outlook, etc.)
-    const nonVerifiableDomains = ['gmail.com', 'yahoo.com', 'outlook.com', 'hotmail.com', 'icloud.com', 'aol.com']
-    const emailDomain = fromEmail.split('@')[1]?.toLowerCase()
-    
-    if (emailDomain && nonVerifiableDomains.includes(emailDomain)) {
-      console.log(`⚠️  Email domain ${emailDomain} is not verifiable in Resend, using onboarding@resend.dev`)
-      fromEmail = 'onboarding@resend.dev'
-    }
-    
-    console.log('📧 Sending email via Resend API...')
-    console.log('From:', fromEmail)
-    console.log('To:', options.to)
-    console.log('Subject:', options.subject)
-
-    const response = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${resendApiKey}`,
-      },
-      body: JSON.stringify({
-        from: fromEmail,
-        to: options.to,
-        subject: options.subject,
-        html: options.html,
-      }),
-    })
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({})) as { message?: string; name?: string }
-      
-      // If domain verification error, try with onboarding@resend.dev
-      if (response.status === 403 && errorData.message?.includes('domain is not verified')) {
-        console.log('⚠️  Domain verification error, retrying with onboarding@resend.dev...')
-        return this.sendEmailViaResendWithFrom(options, 'onboarding@resend.dev')
-      }
-      
-      // If test email restriction (can only send to verified email in test mode)
-      if (response.status === 403 && errorData.message?.includes('testing emails')) {
-        const errorMsg = `Resend API error: Domain is pending verification. You can only send emails to your verified email address in test mode. Please wait for domain verification or verify your domain at https://resend.com/domains`
-        console.error('❌', errorMsg)
-        throw new Error(errorMsg)
-      }
-      
-      throw new Error(`Resend API error: ${response.status} ${response.statusText} - ${JSON.stringify(errorData)}`)
-    }
-
-    const data = await response.json() as { id?: string }
-    console.log(`✓ Email sent successfully via Resend to ${options.to}`)
-    if (data.id) {
-      console.log('Resend ID:', data.id)
-    }
-  }
-
-  /**
-   * Helper method to send email with specific from address
-   */
-  private async sendEmailViaResendWithFrom(options: EmailOptions, fromEmail: string): Promise<void> {
-    const resendApiKey = process.env.RESEND_API_KEY
-    if (!resendApiKey) {
-      throw new Error('RESEND_API_KEY environment variable is not set')
-    }
-
-    const response = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${resendApiKey}`,
-      },
-      body: JSON.stringify({
-        from: fromEmail,
-        to: options.to,
-        subject: options.subject,
-        html: options.html,
-      }),
-    })
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}))
-      throw new Error(`Resend API error: ${response.status} ${response.statusText} - ${JSON.stringify(errorData)}`)
-    }
-
-    const data = await response.json() as { id?: string }
-    console.log(`✓ Email sent successfully via Resend to ${options.to}`)
-    if (data.id) {
-      console.log('Resend ID:', data.id)
-    }
-  }
-
-  /**
-   * Send email
+   * Send email using SMTP
    */
   async sendEmail(options: EmailOptions): Promise<void> {
     try {
       console.log(`📧 Attempting to send email to ${options.to}...`)
       
-      // Try Resend API first (works on Render)
-      if (process.env.RESEND_API_KEY) {
-        try {
-          await this.sendEmailViaResend(options)
-          return
-        } catch (resendError: any) {
-          // Don't fallback to SMTP on Render (SMTP is blocked)
-          // Only use SMTP fallback in local development
-          if (process.env.NODE_ENV === 'production' || process.env.RENDER) {
-            console.error('❌ Resend API failed on Render/production. SMTP is not available. Error:', resendError.message)
-            throw resendError // Re-throw to prevent SMTP fallback
-          }
-          console.error('❌ Resend API failed, falling back to SMTP (local dev only):', resendError.message)
-          // Fall through to SMTP only in local development
-        }
-      }
-
-      // Fallback to SMTP (for local development only)
       const transporter = await this.initializeTransporter()
 
       const fromEmail = process.env.SMTP_FROM || process.env.SMTP_USER
