@@ -500,7 +500,7 @@ Send a message to the AI chatbot.
   "sessionId": "optional-session-id",
   "language": "en"
 }
-```
+``` 
 
 **Response:**
 ```json
