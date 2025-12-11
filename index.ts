@@ -34,7 +34,11 @@ const isOriginAllowed = (origin: string | undefined): boolean => {
     frontendUrl,
     'http://localhost:5173',
     'http://127.0.0.1:5173',
-    'http://localhost:3000' // Allow same origin
+    'http://localhost:3000', // Allow same origin
+    'https://meow-crafts.com',
+    'https://www.meow-crafts.com',
+    'http://meow-crafts.com',
+    'http://www.meow-crafts.com'
   ]
   
   // Check exact match
@@ -45,6 +49,12 @@ const isOriginAllowed = (origin: string | undefined): boolean => {
   // Allow all Amplify domains (*.amplifyapp.com)
   if (normalizedOrigin.includes('.amplifyapp.com')) {
     console.log(`✅ Allowing Amplify origin: ${normalizedOrigin}`)
+    return true
+  }
+  
+  // Allow meow-crafts.com domains (with or without www, http or https)
+  if (normalizedOrigin.includes('meow-crafts.com')) {
+    console.log(`✅ Allowing meow-crafts.com origin: ${normalizedOrigin}`)
     return true
   }
   

@@ -1033,26 +1033,90 @@ eb create meowcrafts-backend-prod
 #### Environment Variables
 
 Set all required environment variables in AWS Elastic Beanstalk Console:
+
+**Required Variables:**
 - `NODE_ENV=production`
 - `PORT=8080`
-- `FRONTEND_URL=https://your-frontend-domain.com`
+- `FRONTEND_URL=https://www.meow-crafts.com` (⚠️ **Important**: Must match your frontend domain exactly, without trailing slash)
 - `SUPABASE_URL=your-supabase-url`
 - `SUPABASE_SERVICE_ROLE_KEY=your-service-role-key`
-- `JWT_SECRET=your-jwt-secret`
+- `JWT_SECRET=your-jwt-secret` (generate a strong random string)
 - `OPENAI_API_KEY=your-openai-key`
-- `SMTP_HOST=your-smtp-host`
+- `SMTP_HOST=your-smtp-host` (e.g., `smtp.gmail.com`)
 - `SMTP_PORT=587`
 - `SMTP_SECURE=false`
 - `SMTP_USER=your-smtp-user`
 - `SMTP_PASSWORD=your-smtp-password`
 - `SMTP_FROM=your-email@example.com`
 
+**How to Set:**
+1. Go to **Elastic Beanstalk Console** → Your environment
+2. **Configuration** → **Software** → **Environment properties**
+3. Add/edit each variable
+4. **Save** and wait for environment restart (2-5 minutes)
+
+**⚠️ Important Notes:**
+- `FRONTEND_URL` must match your frontend domain exactly (with or without www)
+- No trailing slash in `FRONTEND_URL` (e.g., `https://www.meow-crafts.com` not `https://www.meow-crafts.com/`)
+- This is critical for CORS functionality
+- After changing `FRONTEND_URL`, restart the environment
+
 #### Custom Domain Setup
 
-1. **Create SSL certificate** in AWS Certificate Manager (ACM) for `api.yourdomain.com`
-2. **Configure DNS** in Route 53: Add CNAME record pointing to Elastic Beanstalk URL
-3. **Add HTTPS listener** in Elastic Beanstalk: Port 443, HTTPS protocol, select SSL certificate
-4. **Update frontend** environment variables to use `https://api.yourdomain.com`
+The backend is configured with a custom domain: `api.meow-crafts.com`
+
+**Setup Process:**
+
+1. **Create SSL Certificate:**
+   - Go to **AWS Certificate Manager (ACM)** → **eu-central-1** region
+   - **Request a certificate** → **Request a public certificate**
+   - Domain name: `api.meow-crafts.com`
+   - Validation method: **DNS validation**
+   - Add DNS validation records to Route 53
+   - Wait for certificate validation (can take up to 24 hours)
+
+2. **Configure DNS:**
+   - Go to **Route 53** → **Hosted zones** → Your domain
+   - Add **CNAME record**:
+     - **Name**: `api`
+     - **Type**: CNAME
+     - **Value**: Your Elastic Beanstalk environment URL (e.g., `meowcrafts-backend-prod.eba-msrp3v5m.eu-central-1.elasticbeanstalk.com`)
+     - **TTL**: 300 (or default)
+
+3. **Configure Load Balancer:**
+   - Go to **EC2 Console** → **Load Balancers**
+   - Find your Elastic Beanstalk Load Balancer
+   - **Listeners** tab → **Add listener** (if not exists)
+   - **HTTPS** → Port **443**
+   - **Default action**: Forward to target group
+   - **SSL certificate**: Select your ACM certificate for `api.meow-crafts.com`
+   - **Save**
+
+4. **Verify Target Group:**
+   - Go to **EC2 Console** → **Target Groups**
+   - Find target group used by Load Balancer
+   - **Details** tab → Verify:
+     - **Protocol**: **HTTP** (not HTTPS!)
+     - **Port**: **80**
+     - **Health check protocol**: **HTTP**
+     - **Health check path**: `/health`
+
+**⚠️ Important:**
+- Load Balancer listener uses **HTTPS** (port 443) for SSL termination
+- Target group uses **HTTP** (port 80) for backend communication
+- Backend application listens on HTTP (port 8080)
+
+5. **Update Frontend:**
+   - Update frontend `VITE_API_URL` to: `https://api.meow-crafts.com/api`
+
+**Architecture:**
+```
+Frontend (HTTPS) 
+  → Load Balancer Listener (HTTPS/443) [SSL Termination]
+    → Target Group (HTTP/80) 
+      → Nginx (HTTP/8080)
+        → Node.js App (HTTP/8080)
+```
 
 #### Build Process
 
@@ -1071,15 +1135,47 @@ Elastic Beanstalk uses `/health` endpoint for health checks. The endpoint return
 }
 ```
 
+**Health Check Configuration:**
+- **Path**: `/health`
+- **Protocol**: HTTP
+- **Port**: 80 (Load Balancer) → 8080 (Backend)
+- **Interval**: 30 seconds
+- **Timeout**: 5 seconds
+- **Healthy threshold**: 3 consecutive successes
+- **Unhealthy threshold**: 5 consecutive failures
+
+**Test Health Check:**
+```bash
+# Direct Elastic Beanstalk URL
+curl http://meowcrafts-backend-prod.eba-msrp3v5m.eu-central-1.elasticbeanstalk.com/health
+
+# Custom domain
+curl https://api.meow-crafts.com/health
+```
+
 #### Configuration Files
 
 - `.ebextensions/` - Elastic Beanstalk configuration files
-  - `01-nodecommand.config` - Environment variables and health check
-  - `02-nginx.config` - Nginx proxy configuration with CORS support
-  - `03-websocket.config` - WebSocket/Socket.io configuration
-  - `04-cors.config` - CORS configuration
+  - `01-nodecommand.config` - Environment variables and health check configuration
+  - `02-nginx.config` - Nginx proxy configuration with CORS support and WebSocket handling
+  - `03-websocket.config` - WebSocket/Socket.io sticky sessions configuration
+  - `04-cors.config` - CORS and static files configuration
 - `.ebignore` - Files to exclude from deployment (similar to .gitignore)
 - `.elasticbeanstalk/config.yml` - EB CLI configuration
+
+**Load Balancer Configuration:**
+- Elastic Beanstalk automatically creates an Application Load Balancer (ALB)
+- Load Balancer handles SSL termination (HTTPS on port 443)
+- Target group uses HTTP protocol (port 80) to communicate with backend
+- Backend application listens on HTTP (port 8080) via Nginx proxy
+
+#### Educational Purpose Tags
+
+To mark resources for educational purposes:
+1. Go to **Elastic Beanstalk Console** → Your environment
+2. **Configuration** → **Tags**
+3. Add tag: **Key**: `Purpose`, **Value**: `Educational`
+4. **Apply**
 
 ---
 
@@ -1132,6 +1228,7 @@ router.get('/endpoint', newMiddleware, handler)
 - [Database Schema Documentation](./database/SUPABASE_DATABASE_SCHEMA.md)
 - [Wheel of Fortune Documentation](../mywebsite-frontend/WHEEL_OF_FORTUNE_DOCUMENTATION.md)
 - [SmartChat Documentation](../mywebsite-frontend/SMARTCHAT_DOCUMENTATION.md)
+- [Frontend README](../mywebsite-frontend/README.md)
 
 ---
 
@@ -1162,19 +1259,74 @@ lsof -ti:3000 | xargs kill
 ```
 
 **Supabase connection errors:**
-- Verify `SUPABASE_URL` and `SUPABASE_ANON_KEY` are correct
+- Verify `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are correct
 - Check Supabase project is active
 - Verify network connectivity
+- Ensure `SUPABASE_SERVICE_ROLE_KEY` is used (not `SUPABASE_ANON_KEY`)
 
 **Email not sending:**
 - Verify SMTP credentials
 - Check app password for Gmail
 - Verify SMTP port and secure settings
+- Check Elastic Beanstalk logs for email errors
 
 **JWT token errors:**
-- Verify `JWT_SECRET` is set
+- Verify `JWT_SECRET` is set in environment variables
 - Check token expiration
 - Ensure token is sent in Authorization header
+- Verify `JWT_SECRET` matches between frontend and backend
+
+**CORS errors:**
+- Verify `FRONTEND_URL` environment variable is set correctly
+- Check that `FRONTEND_URL` matches your frontend domain exactly (with or without www)
+- Ensure no trailing slash in `FRONTEND_URL` (e.g., `https://www.meow-crafts.com` not `https://www.meow-crafts.com/`)
+- Restart Elastic Beanstalk environment after changing `FRONTEND_URL`
+- Check backend logs for CORS error messages
+
+**502 Bad Gateway errors:**
+- Check Elastic Beanstalk health status (should be "Ok")
+- Verify Load Balancer target group is using **HTTP** protocol (not HTTPS)
+- Check target group health: EC2 Console → Target Groups → Your target group → Targets tab
+- Verify health check path is `/health` and protocol is HTTP
+- Check backend logs: `eb logs` or Elastic Beanstalk Console → Logs
+- Verify backend application is running: Check logs for startup errors
+
+**Load Balancer issues:**
+- Verify HTTPS listener (port 443) exists and uses correct SSL certificate
+- Verify target group protocol is **HTTP** (not HTTPS)
+- Check that Load Balancer forwards to correct target group
+- Verify target group has healthy instances
+
+**CloudFormation stack issues:**
+- If stack is in `UPDATE_ROLLBACK_FAILED` state:
+  ```bash
+  aws cloudformation continue-update-rollback \
+    --stack-name awseb-e-spnu4ap2s8-stack \
+    --resources-to-skip AWSEBV2LoadBalancerListener \
+    --region eu-central-1
+  ```
+- Check CloudFormation events for specific errors
+- Verify all required resources exist (Load Balancer, Target Group, etc.)
+
+**Custom domain not working:**
+- Verify DNS CNAME record in Route 53 points to Elastic Beanstalk URL
+- Check DNS propagation: Use [dnschecker.org](https://dnschecker.org/)
+- Verify SSL certificate is valid and covers your domain
+- Check Load Balancer listener is configured with correct SSL certificate
+- Test: `curl https://api.meow-crafts.com/health`
+
+**WebSocket connection issues:**
+- Verify Socket.io server is running
+- Check that WebSocket upgrade headers are properly configured
+- Verify Load Balancer supports WebSocket (should work by default)
+- Check backend logs for WebSocket connection errors
+- Test WebSocket connection from frontend
+
+**Environment variable not updating:**
+- After changing environment variables, wait for environment restart (2-5 minutes)
+- Check environment status in Elastic Beanstalk Console
+- Verify variables are saved: Configuration → Software → Environment properties
+- Restart environment manually if needed: Actions → Restart app server(s)
 
 ---
 
