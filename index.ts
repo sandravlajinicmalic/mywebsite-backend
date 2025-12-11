@@ -48,16 +48,15 @@ const isOriginAllowed = (origin: string | undefined): boolean => {
   
   // Allow all Amplify domains (*.amplifyapp.com)
   if (normalizedOrigin.includes('.amplifyapp.com')) {
-    console.log(`✅ Allowing Amplify origin: ${normalizedOrigin}`)
     return true
   }
   
   // Allow meow-crafts.com domains (with or without www, http or https)
   if (normalizedOrigin.includes('meow-crafts.com')) {
-    console.log(`✅ Allowing meow-crafts.com origin: ${normalizedOrigin}`)
     return true
   }
   
+  // Only log blocked origins (not allowed ones)
   console.log(`❌ CORS blocked origin: ${normalizedOrigin}`)
   console.log(`   Allowed origins: ${allowedOrigins.join(', ')}`)
   return false
@@ -85,14 +84,13 @@ const io = new Server(httpServer, {
   connectTimeout: 45000
 })
 
-// Middleware - CORS with detailed logging
+// Middleware - CORS (only log blocked requests)
 app.use(cors({
   origin: (origin, callback) => {
-    console.log(`🔍 CORS check - Origin: ${origin || 'undefined'}`)
     if (isOriginAllowed(origin)) {
-      console.log(`✅ CORS allowed for origin: ${origin || 'undefined'}`)
       callback(null, true)
     } else {
+      // Only log blocked origins
       console.log(`❌ CORS blocked for origin: ${origin || 'undefined'}`)
       callback(new Error('Not allowed by CORS'))
     }
@@ -131,11 +129,12 @@ app.use('/api/user', userRoutes)
 // Cat State Machine - runs 24/7
 let stateMachineInterval: NodeJS.Timeout | null = null
 let cleanupInterval: NodeJS.Timeout | null = null
+let previousState: string | null = null // Track previous state to avoid repetition
 
 async function initializeCatStateMachine() {
   try {
     // Initialize cat state if it doesn't exist
-    const { data: _existingState, error: selectError } = await supabase
+    const { data: existingState, error: selectError } = await supabase
       .from('global_cat_state')
       .select('*')
       .eq('id', 1)
@@ -164,10 +163,14 @@ async function initializeCatStateMachine() {
         throw insertError
       }
 
+      previousState = null // No previous state on initialization
       await addLog('System: Cat initialized')
     } else if (selectError) {
       console.error('Error checking cat state:', selectError)
       throw selectError
+    } else if (existingState) {
+      // Initialize previousState with current state to avoid immediate repetition
+      previousState = existingState.current
     }
   } catch (error) {
     console.error('Failed to initialize cat state machine:', error)
@@ -186,11 +189,11 @@ async function initializeCatStateMachine() {
       if (state.is_resting && state.rest_end_time) {
         const restEndTime = new Date(state.rest_end_time)
         if (now >= restEndTime) {
-          // REST period ended
+          // REST period ended - go to 'wake' state
           await supabase
             .from('global_cat_state')
             .update({
-              current: 'playing',
+              current: 'wake',
               is_resting: false,
               rest_end_time: null,
               rested_by: null,
@@ -201,29 +204,70 @@ async function initializeCatStateMachine() {
 
           await addLog('System: Cat woke up')
           io.emit('cat-rest-ended')
-          io.emit('cat-state-changed', { state: 'playing' })
+          io.emit('cat-state-changed', { state: 'wake' })
+          
+          // Update previousState to 'sleeping' so 'wake' won't be immediately repeated
+          previousState = 'sleeping'
         }
         // If REST is still active, don't change state
         return
       }
 
+      // Handle 'wake' state - wait at least 10 seconds before transitioning
+      // This ensures 'wake' state is visible to users before changing
+      if (state.current === 'wake') {
+        const lastUpdated = new Date(state.last_updated)
+        const timeSinceWake = now.getTime() - lastUpdated.getTime()
+        // Wait at least 10 seconds before transitioning from 'wake' to normal state
+        if (timeSinceWake < 10000) {
+          return // Don't change state yet - 'wake' needs to be visible
+        }
+      }
+
       // Change state every 10 seconds (only if not resting)
       // Exclude 'sleeping' state (only for REST)
+      // 'wake' state will be replaced by normal state machine after 10 seconds
       const states: Array<'playing' | 'zen' | 'happy' | 'tired' | 'angry'> = ['playing', 'zen', 'happy', 'tired', 'angry']
       
-      // Filter out current state to ensure it changes
-      const availableStates = states.filter(s => s !== state.current)
-      const newState = availableStates.length > 0 
-        ? availableStates[Math.floor(Math.random() * availableStates.length)]
-        : states[Math.floor(Math.random() * states.length)]
+      // Filter out current state AND previous state to avoid repetition
+      // Also handle 'wake' state - treat it as if previous state was 'sleeping'
+      const effectivePreviousState = (state.current === 'wake') ? 'sleeping' : previousState
+      const availableStates = states.filter(s => s !== state.current && s !== effectivePreviousState)
+      
+      // If no available states (shouldn't happen with 5 states, but just in case), 
+      // filter out only current state
+      const finalAvailableStates = availableStates.length > 0 
+        ? availableStates 
+        : states.filter(s => s !== state.current)
+      
+      // Ensure we have at least one available state
+      if (finalAvailableStates.length === 0) {
+        return // Shouldn't happen, but skip if no states available
+      }
+      
+      // Pick random state from available ones
+      const newState = finalAvailableStates[Math.floor(Math.random() * finalAvailableStates.length)]
 
-      await supabase
+      // Double check - should never be the same as current state
+      if (newState === state.current) {
+        return // Skip if somehow the same state was selected
+      }
+
+      const { error } = await supabase
         .from('global_cat_state')
         .update({
           current: newState,
           last_updated: now.toISOString()
         })
         .eq('id', 1)
+
+      if (error) {
+        console.error('Error updating cat state:', error)
+        return
+      }
+
+      // Update previous state AFTER successful database update
+      previousState = state.current
 
       await addLog(`System: Cat transitioning to state '${newState}'`)
       io.emit('cat-state-changed', { state: newState })
@@ -373,6 +417,13 @@ io.on('connection', (socket: Socket) => {
       if (state.is_resting) {
         socket.emit('rest-denied', { message: 'Cat is already sleeping' })
         await addLog(`${data.userName}: Attempted to put cat to sleep (DENIED - already sleeping)`)
+        return
+      }
+
+      // Check if cat is in 'wake' state (transitional state after waking up)
+      if (state.current === 'wake') {
+        socket.emit('rest-denied', { message: 'Cat is still waking up, please wait' })
+        await addLog(`${data.userName}: Attempted to put cat to sleep (DENIED - still waking up)`)
         return
       }
 

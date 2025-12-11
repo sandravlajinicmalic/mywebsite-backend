@@ -5,7 +5,7 @@ import { io } from '../index.js'
 const router = express.Router()
 
 // Cat states
-export type CatState = 'playing' | 'zen' | 'sleeping' | 'happy' | 'tired' | 'angry'
+export type CatState = 'playing' | 'zen' | 'sleeping' | 'happy' | 'tired' | 'angry' | 'wake'
 
 interface CatStateData {
   current: CatState
