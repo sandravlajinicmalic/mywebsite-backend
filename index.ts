@@ -277,10 +277,10 @@ async function initializeCatStateMachine() {
   }, 10000) // Check every 10 seconds
 }
 
-// Cleanup old cat logs (older than 2 hours)
+// Cleanup old cat logs (older than 1 hour)
 async function cleanupOldLogs(): Promise<void> {
   try {
-    const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000) // 2 hours ago
+    const oneHourAgo = new Date(Date.now() - 1 * 60 * 60 * 1000) // 1 hour ago
     
     // Add timeout to prevent hanging requests
     let timeoutId: NodeJS.Timeout | null = null
@@ -291,7 +291,7 @@ async function cleanupOldLogs(): Promise<void> {
     const deletePromise = Promise.resolve(supabase
       .from('cat_logs')
       .delete()
-      .lt('timestamp', twoHoursAgo.toISOString()))
+      .lt('timestamp', oneHourAgo.toISOString()))
       .then((result) => {
         if (timeoutId) clearTimeout(timeoutId)
         return result
@@ -316,7 +316,7 @@ async function cleanupOldLogs(): Promise<void> {
         return
       }
 
-      console.log(`Cleaned up old cat logs (older than 2 hours) at ${new Date().toISOString()}`)
+      console.log(`Cleaned up old cat logs (older than 1 hour) at ${new Date().toISOString()}`)
     } catch (raceError: any) {
       // This catches timeout errors from Promise.race
       if (timeoutId) clearTimeout(timeoutId)

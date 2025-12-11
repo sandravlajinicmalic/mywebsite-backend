@@ -20,24 +20,36 @@ const COOLDOWN_MS = 30 * 1000 // 30 seconds
 const REWARD_DURATION_MS = 30 * 1000 // 30 seconds
 
 // Helper function to create an active reward
+// Note: This will delete all existing active rewards for the user before creating the new one
+// (only one active reward can exist at a time)
 const createActiveReward = async (
   userId: string,
   rewardType: string,
   rewardValue: any,
   durationMs: number = REWARD_DURATION_MS
 ): Promise<void> => {
+  // Delete all existing active rewards for this user (only one active reward at a time)
+  const { error: deleteError } = await supabase
+    .from('user_active_rewards')
+    .delete()
+    .eq('user_id', userId)
+
+  if (deleteError) {
+    console.error(`❌ Error deleting existing rewards for user ${userId}:`, deleteError)
+    throw deleteError
+  }
+
+  // Create the new reward
   const expiresAt = new Date(Date.now() + durationMs).toISOString()
   const rewardValueStr = JSON.stringify(rewardValue)
 
   const { error } = await supabase
     .from('user_active_rewards')
-    .upsert({
+    .insert({
       user_id: userId,
       reward_type: rewardType,
       reward_value: rewardValueStr,
       expires_at: expiresAt
-    }, {
-      onConflict: 'user_id,reward_type'
     })
 
   if (error) {

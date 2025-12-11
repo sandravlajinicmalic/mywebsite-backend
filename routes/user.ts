@@ -66,6 +66,9 @@ const getUserDataAndAvatar = async (userId: string) => {
 
 // Get all active rewards for current user
 router.get('/active-rewards', authenticateToken, async (req: AuthRequest, res: Response, next: NextFunction) => {
+  const timestamp = new Date().toISOString()
+  console.log(`📥 [${timestamp}] GET /api/user/active-rewards - User: ${req.user?.userId || 'unknown'}`)
+  
   try {
     const userId = req.user?.userId
 
@@ -146,12 +149,10 @@ router.get('/active-rewards', authenticateToken, async (req: AuthRequest, res: R
           }
         }
       }
-      
-      // Log active rewards removed to reduce console noise
-      // (throttled logging was still too frequent due to multiple component calls)
     }
 
-    // Always include avatar (either active or default)
+    // Always include avatar (either active or default) for backward compatibility
+    // But only count it as "active" if it has expiresAt (is a temporary reward)
     if (!rewards.avatar) {
       rewards.avatar = {
         value: { avatar: defaultAvatar },
@@ -165,6 +166,11 @@ router.get('/active-rewards', authenticateToken, async (req: AuthRequest, res: R
       }
     }
 
+    const responseTimestamp = new Date().toISOString()
+    // Only count rewards that have expiresAt (are temporary/active rewards)
+    const activeRewardTypes = Object.keys(rewards).filter(type => rewards[type].expiresAt !== null)
+    console.log(`✅ [${responseTimestamp}] GET /api/user/active-rewards - Response: ${activeRewardTypes.length} active reward(s) [${activeRewardTypes.join(', ') || 'none'}]`)
+    
     res.json({
       success: true,
       rewards: rewards
@@ -176,6 +182,9 @@ router.get('/active-rewards', authenticateToken, async (req: AuthRequest, res: R
 
 // Get active avatar specifically (for backward compatibility)
 router.get('/active-avatar', authenticateToken, async (req: AuthRequest, res: Response, next: NextFunction) => {
+  const timestamp = new Date().toISOString()
+  console.log(`📥 [${timestamp}] GET /api/user/active-avatar - User: ${req.user?.userId || 'unknown'}`)
+  
   try {
     const userId = req.user?.userId
 
@@ -250,7 +259,8 @@ router.get('/active-avatar', authenticateToken, async (req: AuthRequest, res: Re
         avatarPath = activeReward.reward_value || defaultAvatar
       }
 
-      // Log active avatar reward removed to reduce console noise
+      const responseTimestamp = new Date().toISOString()
+      console.log(`✅ [${responseTimestamp}] GET /api/user/active-avatar - Response: Temporary avatar (expires: ${activeReward.expires_at})`)
 
       res.json({
         success: true,
@@ -261,6 +271,9 @@ router.get('/active-avatar', authenticateToken, async (req: AuthRequest, res: Re
       })
     } else {
       // No active reward, return default avatar
+      const responseTimestamp = new Date().toISOString()
+      console.log(`✅ [${responseTimestamp}] GET /api/user/active-avatar - Response: Default avatar (no active reward)`)
+      
       res.json({
         success: true,
         avatar: defaultAvatar,
