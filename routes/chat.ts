@@ -19,6 +19,7 @@ function getSystemPrompt(language: string = 'en'): string {
 Tvoja uloga je da pomažeš ljudima da saznaju više o mačkama, njihovom ponašanju, zdravlju, negi, rasama, ishrani, i svemu što se tiče mačaka.
 
 VAŽNO:
+- Ako te neko pita o psima, budi sarkastičan i odbij da pričaš o njima. Reci da si mačka i da te ne zanimaju psi.
 - Ako te neko pita o nečemu što NIJE vezano za mačke, ljubazno odgovori da možeš da razgovaraš samo o mačkama i preusmeri razgovor na temu mačaka.
 - Budi prijateljski, informativan i entuzijastičan kada pričaš o mačkama.
 - Odgovaraj na srpskom jeziku.
@@ -32,6 +33,7 @@ VAŽNO:
 Your role is to help people learn more about cats, their behavior, health, grooming, breeds, nutrition, and everything related to cats.
 
 IMPORTANT:
+- If someone asks you about dogs, be sarcastic and refuse to talk about them. Tell them you're a cat and you don't care about dogs.
 - If someone asks you about something that is NOT related to cats, politely respond that you can only talk about cats and redirect the conversation to the topic of cats.
 - Be friendly, informative and enthusiastic when talking about cats.
 - Respond in English.
@@ -109,6 +111,19 @@ function sanitizeResponse(response: string): string {
   return sanitized
 }
 
+// Helper function to check if message is about dogs
+function isAboutDogs(message: string): boolean {
+  const dogKeywords = [
+    'pas', 'psi', 'kuče', 'kučić', 'kučići', 'pse', 'psa',
+    'dog', 'dogs', 'puppy', 'puppies', 'canine', 'canines',
+    'vau', 'lajanje', 'barking', 'woof', 'woofing',
+    'rep psa', 'dog tail', 'šape psa', 'dog paws'
+  ]
+  
+  const lowerMessage = message.toLowerCase()
+  return dogKeywords.some(keyword => lowerMessage.includes(keyword))
+}
+
 // Helper function to check if message is about cats
 function isAboutCats(message: string): boolean {
   const catKeywords = [
@@ -130,7 +145,7 @@ router.post('/message', async (req: Request, res: Response) => {
     const { message, sessionId, language } = req.body
 
     if (!message || typeof message !== 'string') {
-      res.status(400).json({ error: 'Message is required' })
+      res.status(400).json({ errorCode: 'chat.messageRequired' })
       return
     }
 
@@ -143,7 +158,8 @@ router.post('/message', async (req: Request, res: Response) => {
     if (!finalMessage || finalMessage.length === 0) {
       res.status(400).json({ 
         error: 'Message must contain only text characters',
-        response: 'Sorry, message must contain only text characters (letters, numbers, spaces and basic punctuation).'
+        response: '', // Empty response, frontend will use messageCode
+        messageCode: 'catMessageTextOnly'
       })
       return
     }
@@ -151,8 +167,19 @@ router.post('/message', async (req: Request, res: Response) => {
     // Check if message is requesting code, images, or non-text content
     if (isRequestingNonText(finalMessage)) {
       res.json({
-        response: 'Sorry, I can only provide text responses about cats. I cannot generate code, images, files or anything that is not plain text. Ask me a question about cats!',
-        isAboutCats: false
+        response: '', // Empty response, frontend will use messageCode
+        isAboutCats: false,
+        messageCode: 'catMessageNonText'
+      })
+      return
+    }
+
+    // Check if message is about dogs - respond sarcastically
+    if (isAboutDogs(finalMessage)) {
+      res.json({
+        response: '', // Empty response, frontend will use messageCode
+        isAboutCats: false,
+        messageCode: 'catMessageDog'
       })
       return
     }
@@ -160,8 +187,9 @@ router.post('/message', async (req: Request, res: Response) => {
     // Check if message is about cats
     if (!isAboutCats(finalMessage)) {
       res.json({
-        response: 'Ask me a question about cats, their behavior, health, grooming or anything related to cats.',
-        isAboutCats: false
+        response: '', // Empty response, frontend will use messageCode
+        isAboutCats: false,
+        messageCode: 'catMessageNotAboutCats'
       })
       return
     }
@@ -173,8 +201,9 @@ router.post('/message', async (req: Request, res: Response) => {
     // Check if OpenAI API key is configured
     if (!process.env.OPENAI_API_KEY) {
       res.json({
-        response: 'Sorry, AI service is not configured. Please add OPENAI_API_KEY to the .env file.',
-        isAboutCats: true
+        response: '', // Empty response, frontend will use messageCode
+        isAboutCats: true,
+        messageCode: 'catMessageAiNotConfigured'
       })
       return
     }
@@ -204,21 +233,41 @@ router.post('/message', async (req: Request, res: Response) => {
         max_tokens: 500,
       })
 
-      let assistantResponse = completion.choices[0]?.message?.content || 'Sorry, I could not generate a response. Please try again!'
+      let assistantResponse = completion.choices[0]?.message?.content || null
+
+      // If no response from API, return error code
+      if (!assistantResponse) {
+        res.json({
+          response: '',
+          isAboutCats: true,
+          messageCode: 'catMessageCouldNotGenerate'
+        })
+        return
+      }
 
       // Sanitize response - remove code blocks and ensure text only
       const sanitizedResponse = sanitizeResponse(assistantResponse)
       
       // If response was heavily modified (contains code blocks), use fallback
       if (sanitizedResponse.length < assistantResponse.length * 0.5 && assistantResponse.includes('```')) {
-        assistantResponse = 'Sorry, I can only provide text responses about cats. Ask me a question about cats!'
+        res.json({
+          response: '',
+          isAboutCats: false,
+          messageCode: 'catMessageNonText'
+        })
+        return
       } else {
         assistantResponse = sanitizedResponse || assistantResponse
       }
 
       // Final check - ensure response is not empty
       if (!assistantResponse || assistantResponse.trim().length === 0) {
-        assistantResponse = 'Sorry, I could not generate a response. Please try again!'
+        res.json({
+          response: '',
+          isAboutCats: true,
+          messageCode: 'catMessageCouldNotGenerate'
+        })
+        return
       }
 
       // Add assistant response to history
@@ -239,18 +288,18 @@ router.post('/message', async (req: Request, res: Response) => {
       console.error('OpenAI API error:', error)
       
       // Fallback response if API fails
-      const fallbackResponse = 'Sorry, an error occurred while communicating with the AI service. Please try again in a few moments!'
-      
       res.json({
-        response: fallbackResponse,
-        isAboutCats: true
+        response: '',
+        isAboutCats: true,
+        messageCode: 'catMessageErrorCommunicating'
       })
     }
   } catch (error) {
     console.error('Chat error:', error)
     res.status(500).json({ 
       error: 'Error communicating with chatbot',
-      response: 'Sorry, an error occurred. Please try again!'
+      response: '',
+      messageCode: 'catMessageErrorOccurred'
     })
   }
 })
@@ -261,9 +310,9 @@ router.post('/clear', (req: Request, res: Response) => {
     const { sessionId } = req.body
     const session = sessionId || 'default'
     conversationHistory.delete(session)
-    res.json({ success: true, message: 'Conversation history cleared' })
+    res.json({ success: true, messageCode: 'chat.historyCleared' })
   } catch (error) {
-    res.status(500).json({ error: 'Error clearing history' })
+    res.status(500).json({ errorCode: 'chat.errorClearingHistory' })
   }
 })
 

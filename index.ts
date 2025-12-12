@@ -409,20 +409,20 @@ io.on('connection', (socket: Socket) => {
     try {
       const state = await getCurrentCatState()
       if (!state) {
-        socket.emit('rest-denied', { message: 'Cat state not found' })
+        socket.emit('rest-denied', { errorCode: 'cat.stateNotFound' })
         return
       }
 
       // Check if already resting
       if (state.is_resting) {
-        socket.emit('rest-denied', { message: 'Cat is already sleeping' })
+        socket.emit('rest-denied', { errorCode: 'cat.alreadySleeping' })
         await addLog(`${data.userName}: Attempted to put cat to sleep (DENIED - already sleeping)`)
         return
       }
 
       // Check if cat is in 'wake' state (transitional state after waking up)
       if (state.current === 'wake') {
-        socket.emit('rest-denied', { message: 'Cat is still waking up, please wait' })
+        socket.emit('rest-denied', { errorCode: 'cat.stillWakingUp' })
         await addLog(`${data.userName}: Attempted to put cat to sleep (DENIED - still waking up)`)
         return
       }
@@ -445,7 +445,7 @@ io.on('connection', (socket: Socket) => {
 
       if (error) {
         // Race condition - someone else activated REST
-        socket.emit('rest-denied', { message: 'Someone else has already put the cat to sleep!' })
+        socket.emit('rest-denied', { errorCode: 'cat.someoneElsePutToSleep' })
         await addLog(`${data.userName}: Attempted to put cat to sleep (DENIED - race condition)`)
         return
       }
@@ -460,7 +460,7 @@ io.on('connection', (socket: Socket) => {
       io.emit('cat-state-changed', { state: 'sleeping' })
     } catch (error) {
       console.error('Activate REST error:', error)
-      socket.emit('rest-denied', { message: 'Error putting cat to sleep' })
+      socket.emit('rest-denied', { errorCode: 'cat.errorPuttingToSleep' })
     }
   })
 

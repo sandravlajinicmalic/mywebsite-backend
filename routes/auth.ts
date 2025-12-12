@@ -31,29 +31,29 @@ router.post('/login', async (req: Request<{}, {}, LoginRequestBody>, res: Respon
 
     // Email format validation
     if (!email) {
-      errors.email = 'Email is required'
+      errors.email = 'auth.emailRequired'
     } else {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
       if (!emailRegex.test(email)) {
-        errors.email = 'Invalid email format'
+        errors.email = 'auth.invalidEmailFormat'
       }
     }
 
     // Nickname validation - only letters, numbers, underscore and dash are allowed
     if (!nickname) {
-      errors.nickname = 'Nickname is required'
+      errors.nickname = 'auth.nicknameRequired'
     } else {
       // Nickname must not contain special characters except underscore and dash
       const nicknameRegex = /^[a-zA-Z0-9_-]+$/
       if (!nicknameRegex.test(nickname)) {
-        errors.nickname = 'Nickname can only contain letters, numbers, underscore (_) and dash (-)'
+        errors.nickname = 'auth.nicknameInvalid'
       }
     }
 
     // If there are errors, return them
     if (Object.keys(errors).length > 0) {
       res.status(400).json({ 
-        error: 'Validation failed',
+        errorCode: 'auth.validationFailed',
         errors 
       })
       return
@@ -83,10 +83,10 @@ router.post('/login', async (req: Request<{}, {}, LoginRequestBody>, res: Respon
       if (existingUserByEmail.id !== existingUserByNickname.id) {
         // Different users - email and nickname do not match
         res.status(400).json({
-          error: 'Email and nickname do not match',
+          errorCode: 'auth.emailNicknameMismatch',
           errors: {
-            email: 'This email is already registered with a different nickname',
-            nickname: 'This nickname is already registered with a different email'
+            email: 'auth.emailRegisteredDifferentNickname',
+            nickname: 'auth.nicknameRegisteredDifferentEmail'
           }
         })
         return
@@ -95,18 +95,18 @@ router.post('/login', async (req: Request<{}, {}, LoginRequestBody>, res: Respon
     } else if (existingUserByEmail && !existingUserByNickname) {
       // Email exists, but nickname does not - attempt to login with wrong nickname
       res.status(400).json({
-        error: 'Nickname does not match email',
+        errorCode: 'auth.nicknameDoesNotMatchEmail',
         errors: {
-          nickname: 'This nickname does not match the email address'
+          nickname: 'auth.nicknameDoesNotMatchEmailAddress'
         }
       })
       return
     } else if (!existingUserByEmail && existingUserByNickname) {
       // Nickname exists, but email does not - attempt to create new user with taken nickname
       res.status(400).json({
-        error: 'This nickname is already taken',
+        errorCode: 'auth.nicknameAlreadyTaken',
         errors: {
-          nickname: 'This nickname is already taken'
+          nickname: 'auth.nicknameAlreadyTaken'
         }
       })
       return
@@ -170,7 +170,7 @@ router.get('/verify', async (req: Request, res: Response, next: NextFunction) =>
     const token = req.headers.authorization?.replace('Bearer ', '')
 
     if (!token) {
-      res.status(401).json({ error: 'Token not found' })
+      res.status(401).json({ errorCode: 'auth.tokenNotFound' })
       return
     }
 
@@ -187,14 +187,14 @@ router.get('/verify', async (req: Request, res: Response, next: NextFunction) =>
       .single()
 
     if (error || !user) {
-      res.status(401).json({ error: 'User not found' })
+      res.status(401).json({ errorCode: 'auth.userNotFound' })
       return
     }
 
     res.json({ success: true, user })
   } catch (error) {
     if (error instanceof Error && error.name === 'JsonWebTokenError') {
-      res.status(401).json({ error: 'Invalid token' })
+      res.status(401).json({ errorCode: 'auth.invalidToken' })
       return
     }
     next(error)
@@ -209,7 +209,7 @@ router.post('/forgot-nickname', async (req: Request<{}, {}, { email: string }>, 
     // Email format validation
     if (!email) {
       res.status(400).json({ 
-        error: 'Email is required'
+        errorCode: 'auth.emailRequired'
       })
       return
     }
@@ -217,7 +217,7 @@ router.post('/forgot-nickname', async (req: Request<{}, {}, { email: string }>, 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     if (!emailRegex.test(email)) {
       res.status(400).json({ 
-        error: 'Invalid email format'
+        errorCode: 'auth.invalidEmailFormat'
       })
       return
     }
@@ -233,7 +233,7 @@ router.post('/forgot-nickname', async (req: Request<{}, {}, { email: string }>, 
       console.error('Error fetching user:', userError)
       res.status(500).json({
         success: false,
-        error: 'An error occurred while checking your email. Please try again.'
+        errorCode: 'auth.errorCheckingEmail'
       })
       return
     }
@@ -242,7 +242,7 @@ router.post('/forgot-nickname', async (req: Request<{}, {}, { email: string }>, 
     if (!user) {
       res.status(404).json({
         success: false,
-        error: 'No account found with this email address'
+        errorCode: 'auth.noAccountFound'
       })
       return
     }
@@ -256,7 +256,7 @@ router.post('/forgot-nickname', async (req: Request<{}, {}, { email: string }>, 
     // Return success message
     res.json({
       success: true,
-      message: 'We have sent your nickname to your email address'
+      messageCode: 'auth.nicknameSent'
     })
   } catch (error) {
     next(error)
@@ -267,7 +267,7 @@ router.post('/forgot-nickname', async (req: Request<{}, {}, { email: string }>, 
 router.delete('/delete', authenticateToken, async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     if (!req.user) {
-      res.status(401).json({ error: 'User not authenticated' })
+      res.status(401).json({ errorCode: 'auth.userNotAuthenticated' })
       return
     }
 
@@ -281,7 +281,7 @@ router.delete('/delete', authenticateToken, async (req: AuthRequest, res: Respon
       .single()
 
     if (fetchError || !user) {
-      res.status(404).json({ error: 'User not found' })
+      res.status(404).json({ errorCode: 'auth.userNotFound' })
       return
     }
 
@@ -293,7 +293,7 @@ router.delete('/delete', authenticateToken, async (req: AuthRequest, res: Respon
 
     if (deleteError) {
       console.error('Error deleting user:', deleteError)
-      res.status(500).json({ error: 'Failed to delete account' })
+      res.status(500).json({ errorCode: 'auth.failedToDeleteAccount' })
       return
     }
 
@@ -305,7 +305,7 @@ router.delete('/delete', authenticateToken, async (req: AuthRequest, res: Respon
 
     res.json({
       success: true,
-      message: 'Account deleted successfully'
+      messageCode: 'auth.accountDeleted'
     })
   } catch (error) {
     next(error)

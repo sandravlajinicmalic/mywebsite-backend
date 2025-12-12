@@ -65,7 +65,7 @@ router.get('/status', async (_req: Request, res: Response) => {
   try {
     const state = await getCurrentCatState()
     if (!state) {
-      res.status(404).json({ error: 'Cat state not found' })
+      res.status(404).json({ errorCode: 'cat.stateNotFound' })
       return
     }
 
@@ -82,7 +82,7 @@ router.get('/status', async (_req: Request, res: Response) => {
       uptime: process.uptime()
     })
   } catch (error) {
-    res.status(500).json({ error: 'Failed to get cat status' })
+    res.status(500).json({ errorCode: 'cat.failedToGetStatus' })
   }
 })
 
@@ -98,7 +98,7 @@ router.post('/init', async (_req: Request, res: Response) => {
     if (existingState) {
       res.json({
         success: true,
-        message: 'Cat state already exists',
+        messageCode: 'cat.stateAlreadyExists',
         state: existingState
       })
       return
@@ -121,7 +121,7 @@ router.post('/init', async (_req: Request, res: Response) => {
       .single()
 
     if (insertError) {
-      res.status(500).json({ error: 'Failed to initialize cat state', details: insertError })
+      res.status(500).json({ errorCode: 'cat.failedToInitialize', details: insertError })
       return
     }
 
@@ -129,11 +129,11 @@ router.post('/init', async (_req: Request, res: Response) => {
 
     res.json({
       success: true,
-      message: 'Cat state initialized',
+      messageCode: 'cat.stateInitialized',
       state: newState
     })
   } catch (error) {
-    res.status(500).json({ error: 'Failed to initialize cat state' })
+    res.status(500).json({ errorCode: 'cat.failedToInitialize' })
   }
 })
 

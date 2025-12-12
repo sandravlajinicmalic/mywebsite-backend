@@ -50,7 +50,7 @@ function validateInput(fieldName: string, value: string): ValidationError | null
     if (pattern.test(value)) {
       return {
         field: fieldName,
-        message: `Please remove special characters like quotes, semicolons, or SQL keywords.`
+        message: 'contact.removeSpecialCharacters'
       }
     }
   }
@@ -60,7 +60,7 @@ function validateInput(fieldName: string, value: string): ValidationError | null
     if (pattern.test(value)) {
       return {
         field: fieldName,
-        message: `Please remove HTML tags and JavaScript code.`
+        message: 'contact.removeHtmlTags'
       }
     }
   }
@@ -70,7 +70,7 @@ function validateInput(fieldName: string, value: string): ValidationError | null
   if (controlChars.test(value)) {
     return {
       field: fieldName,
-      message: `Please use only standard text characters.`
+      message: 'contact.useStandardText'
     }
   }
 
@@ -84,7 +84,7 @@ router.post('/submit', async (req: Request<{}, {}, ContactRequestBody>, res: Res
 
     if (!name || !email || !message) {
       res.status(400).json({ 
-        error: 'Name, email and message are required',
+        errorCode: 'contact.nameEmailMessageRequired',
         field: 'general'
       })
       return
@@ -94,7 +94,7 @@ router.post('/submit', async (req: Request<{}, {}, ContactRequestBody>, res: Res
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     if (!emailRegex.test(email)) {
       res.status(400).json({ 
-        error: 'Invalid email format',
+        errorCode: 'contact.invalidEmailFormat',
         field: 'email'
       })
       return
@@ -155,7 +155,7 @@ router.post('/submit', async (req: Request<{}, {}, ContactRequestBody>, res: Res
 
     res.json({
       success: true,
-      message: 'Message sent successfully!',
+      messageCode: 'contact.messageSent',
       data
     })
   } catch (error) {

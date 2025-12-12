@@ -58,7 +58,9 @@ const getUserDataAndAvatar = async (userId: string) => {
         cause: error.cause,
         hint: 'Check if SUPABASE_URL is correct and Supabase project is active'
       })
-      throw new Error('Failed to connect to Supabase. Please check your SUPABASE_URL and ensure the project is active.')
+      const error = new Error('Failed to connect to Supabase. Please check your SUPABASE_URL and ensure the project is active.') as any
+      error.errorCode = 'user.supabaseConnectionFailed'
+      throw error
     }
     throw error
   }
@@ -73,7 +75,7 @@ router.get('/active-rewards', authenticateToken, async (req: AuthRequest, res: R
     const userId = req.user?.userId
 
     if (!userId) {
-      res.status(401).json({ error: 'User is not authenticated' })
+      res.status(401).json({ errorCode: 'auth.userNotAuthenticated' })
       return
     }
 
@@ -189,7 +191,7 @@ router.get('/active-avatar', authenticateToken, async (req: AuthRequest, res: Re
     const userId = req.user?.userId
 
     if (!userId) {
-      res.status(401).json({ error: 'User is not authenticated' })
+      res.status(401).json({ errorCode: 'auth.userNotAuthenticated' })
       return
     }
 
@@ -293,7 +295,7 @@ router.post('/cleanup-expired-rewards', authenticateToken, async (req: AuthReque
     const userId = req.user?.userId
 
     if (!userId) {
-      res.status(401).json({ error: 'User is not authenticated' })
+      res.status(401).json({ errorCode: 'auth.userNotAuthenticated' })
       return
     }
 
@@ -315,7 +317,7 @@ router.post('/cleanup-expired-rewards', authenticateToken, async (req: AuthReque
           })
           res.json({
             success: true,
-            message: 'Cleanup skipped due to connection issue. Will retry when connection is restored.'
+            messageCode: 'user.cleanupSkipped'
           })
           return
         }
@@ -324,7 +326,7 @@ router.post('/cleanup-expired-rewards', authenticateToken, async (req: AuthReque
 
       res.json({
         success: true,
-        message: 'Expired rewards cleaned up'
+        messageCode: 'user.expiredRewardsCleaned'
       })
     } catch (error: any) {
       // Catch any connection errors that might not be caught above
