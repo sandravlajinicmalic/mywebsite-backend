@@ -58,9 +58,9 @@ const getUserDataAndAvatar = async (userId: string) => {
         cause: error.cause,
         hint: 'Check if SUPABASE_URL is correct and Supabase project is active'
       })
-      const error = new Error('Failed to connect to Supabase. Please check your SUPABASE_URL and ensure the project is active.') as any
-      error.errorCode = 'user.supabaseConnectionFailed'
-      throw error
+      const connectionError = new Error('Failed to connect to Supabase. Please check your SUPABASE_URL and ensure the project is active.') as any
+      connectionError.errorCode = 'user.supabaseConnectionFailed'
+      throw connectionError
     }
     throw error
   }

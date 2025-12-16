@@ -26,7 +26,12 @@ export const authenticateToken = (
     process.env.JWT_SECRET || 'your-secret-key-change-in-production',
     (err, user) => {
       if (err) {
-        res.status(403).json({ errorCode: 'auth.invalidOrExpiredToken' })
+        // Return 401 for expired tokens, 403 for invalid tokens
+        if (err.name === 'TokenExpiredError') {
+          res.status(401).json({ errorCode: 'auth.tokenExpired' })
+        } else {
+          res.status(401).json({ errorCode: 'auth.invalidToken' })
+        }
         return
       }
       req.user = user as { userId: string; email: string }

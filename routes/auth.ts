@@ -193,9 +193,15 @@ router.get('/verify', async (req: Request, res: Response, next: NextFunction) =>
 
     res.json({ success: true, user })
   } catch (error) {
-    if (error instanceof Error && error.name === 'JsonWebTokenError') {
-      res.status(401).json({ errorCode: 'auth.invalidToken' })
-      return
+    if (error instanceof Error) {
+      if (error.name === 'TokenExpiredError') {
+        res.status(401).json({ errorCode: 'auth.tokenExpired' })
+        return
+      }
+      if (error.name === 'JsonWebTokenError') {
+        res.status(401).json({ errorCode: 'auth.invalidToken' })
+        return
+      }
     }
     next(error)
   }
