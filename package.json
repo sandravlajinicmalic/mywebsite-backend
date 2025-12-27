@@ -9,6 +9,7 @@
   },
   "scripts": {
     "build": "echo '=== Starting TypeScript compilation ===' && echo 'TypeScript version:' && tsc --version && echo 'Running tsc...' && tsc --listEmittedFiles 2>&1 || (echo 'TypeScript compilation had errors (check above)' && exit 1) && echo '=== Compilation completed ===' && echo 'Checking dist folder...' && ls -la dist/ 2>&1 && echo 'Checking for dist/index.js...' && test -f dist/index.js && echo '✓ dist/index.js exists' || (echo '✗ ERROR: dist/index.js not found after compilation!' && exit 1)",
+    "postinstall": "if [ ! -f dist/index.js ]; then echo 'dist/index.js not found, running build...' && npm run build || exit 1; else echo 'dist/index.js exists, skipping build'; fi",
     "postbuild": "test -f dist/index.js || (echo 'ERROR: dist/index.js not found after build!' && exit 1)",
     "deploy": "npm run build && eb deploy",
     "prestart": "pwd && echo 'Current directory:' && ls -la && echo 'Checking dist folder:' && ls -la dist/ 2>&1 || echo 'dist folder does not exist!'",

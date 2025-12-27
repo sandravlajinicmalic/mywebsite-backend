@@ -4,7 +4,7 @@ services:
     env: node
     region: frankfurt
     plan: free
-    buildCommand: pwd && echo 'Installing dependencies...' && npm install && echo 'Building project...' && npm run build && echo 'Build verification:' && ls -la dist/ && test -f dist/index.js && echo '✓ dist/index.js exists'
+    buildCommand: pwd && echo '=== Build Environment ===' && echo 'Node version:' && node --version && echo 'NPM version:' && npm --version && echo 'TypeScript version:' && npx tsc --version && echo '=== Installing dependencies ===' && npm install && echo '=== Building project ===' && npm run build && echo '=== Build verification ===' && ls -la dist/ && test -f dist/index.js && echo '✓ SUCCESS: dist/index.js exists' || (echo '✗ FAILED: dist/index.js not found!' && exit 1)
     startCommand: npm start
     envVars:
       - key: NODE_ENV
