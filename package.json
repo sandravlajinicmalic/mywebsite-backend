@@ -8,10 +8,11 @@
     "npm": ">=9.0.0"
   },
   "scripts": {
-    "build": "tsc",
+    "build": "echo 'Starting TypeScript compilation...' && tsc || (echo 'TypeScript compilation failed!' && exit 1) && echo 'Build completed. Checking dist folder...' && ls -la dist/ || (echo 'ERROR: dist folder not found!' && exit 1)",
     "postbuild": "test -f dist/index.js || (echo 'ERROR: dist/index.js not found after build!' && exit 1)",
     "deploy": "npm run build && eb deploy",
-    "start": "node dist/index.js",
+    "prestart": "pwd && echo 'Current directory:' && ls -la && echo 'Checking dist folder:' && ls -la dist/ 2>&1 || echo 'dist folder does not exist!'",
+    "start": "if [ ! -f dist/index.js ]; then echo 'ERROR: dist/index.js not found! Attempting build...' && npm run build || exit 1; fi && node dist/index.js",
     "dev": "tsx watch index.ts",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
