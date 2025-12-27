@@ -22,6 +22,10 @@ const normalizeUrl = (url: string | undefined): string => {
 }
 
 const frontendUrl = normalizeUrl(process.env.FRONTEND_URL)
+// Support multiple frontend URLs (comma-separated)
+const frontendUrls = process.env.FRONTEND_URLS
+  ? process.env.FRONTEND_URLS.split(',').map(url => normalizeUrl(url.trim()))
+  : []
 
 // CORS origin checker
 const isOriginAllowed = (origin: string | undefined): boolean => {
@@ -32,17 +36,19 @@ const isOriginAllowed = (origin: string | undefined): boolean => {
   // Allowed origins list
   const allowedOrigins = [
     frontendUrl,
+    ...frontendUrls, // Add multiple frontend URLs if provided
     'http://localhost:5173',
     'http://127.0.0.1:5173',
-    'http://localhost:3000', // Allow same origin
-    'https://meow-crafts.com',
-    'https://www.meow-crafts.com',
-    'http://meow-crafts.com',
-    'http://www.meow-crafts.com'
+    'http://localhost:3000'
   ]
   
   // Check exact match
   if (allowedOrigins.includes(normalizedOrigin)) {
+    return true
+  }
+  
+  // Allow all Vercel preview/production domains (*.vercel.app)
+  if (normalizedOrigin.includes('.vercel.app')) {
     return true
   }
   
