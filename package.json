@@ -3,6 +3,10 @@
   "version": "1.0.0",
   "type": "module",
   "main": "dist/index.js",
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  },
   "scripts": {
     "build": "tsc",
     "postbuild": "test -f dist/index.js || (echo 'ERROR: dist/index.js not found after build!' && exit 1)",
