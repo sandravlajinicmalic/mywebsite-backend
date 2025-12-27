@@ -1,9 +1,11 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import dotenv from 'dotenv'
 
-// Load environment variables from .env file (if it exists)
-// In production, environment variables are set via Render dashboard, but this won't cause errors
-dotenv.config()
+// Load environment variables from .env file (only in development)
+// In production, environment variables are set via Render dashboard
+if (process.env.NODE_ENV !== 'production') {
+  dotenv.config()
+}
 
 const supabaseUrl: string | undefined = process.env.SUPABASE_URL
 // Backend uses SERVICE_ROLE_KEY to bypass RLS (Row Level Security)

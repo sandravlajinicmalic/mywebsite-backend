@@ -12,9 +12,11 @@ import userRoutes from './routes/user.js'
 import { errorHandler } from './middleware/errorHandler.js'
 import { supabase } from './config/supabase.js'
 
-// Load environment variables from .env file (if it exists)
-// In production, environment variables are set via Render dashboard, but this won't cause errors
-dotenv.config()
+// Load environment variables from .env file (only in development)
+// In production, environment variables are set via Render dashboard
+if (process.env.NODE_ENV !== 'production') {
+  dotenv.config()
+}
 
 // Normalize FRONTEND_URL to remove trailing slash
 const normalizeUrl = (url: string | undefined): string => {
