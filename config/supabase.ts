@@ -1,6 +1,8 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import dotenv from 'dotenv'
 
+// Load environment variables from .env file (if it exists)
+// In production, environment variables are set via Render dashboard, but this won't cause errors
 dotenv.config()
 
 const supabaseUrl: string | undefined = process.env.SUPABASE_URL

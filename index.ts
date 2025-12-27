@@ -12,7 +12,8 @@ import userRoutes from './routes/user.js'
 import { errorHandler } from './middleware/errorHandler.js'
 import { supabase } from './config/supabase.js'
 
-// Load environment variables
+// Load environment variables from .env file (if it exists)
+// In production, environment variables are set via Render dashboard, but this won't cause errors
 dotenv.config()
 
 // Normalize FRONTEND_URL to remove trailing slash
