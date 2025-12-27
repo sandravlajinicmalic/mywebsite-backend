@@ -30,6 +30,29 @@ const frontendUrls = process.env.FRONTEND_URLS
   ? process.env.FRONTEND_URLS.split(',').map(url => normalizeUrl(url.trim()))
   : []
 
+// Helper function to add www and non-www versions of a URL
+const addWwwVariants = (url: string): string[] => {
+  const variants: string[] = [url]
+  try {
+    const urlObj = new URL(url)
+    const hostname = urlObj.hostname
+    
+    // If it's www, add non-www version
+    if (hostname.startsWith('www.')) {
+      const nonWww = url.replace('www.', '')
+      variants.push(nonWww)
+    } 
+    // If it's non-www, add www version
+    else if (!hostname.startsWith('www.')) {
+      const withWww = url.replace(urlObj.hostname, `www.${hostname}`)
+      variants.push(withWww)
+    }
+  } catch {
+    // Invalid URL, just return original
+  }
+  return variants
+}
+
 // CORS origin checker
 const isOriginAllowed = (origin: string | undefined): boolean => {
   if (!origin) return true // Allow requests with no origin (like mobile apps or curl)
@@ -37,13 +60,21 @@ const isOriginAllowed = (origin: string | undefined): boolean => {
   const normalizedOrigin = normalizeUrl(origin)
   
   // Allowed origins list
-  const allowedOrigins = [
-    frontendUrl,
-    ...frontendUrls, // Add multiple frontend URLs if provided
+  const allowedOrigins: string[] = [
     'http://localhost:5173',
     'http://127.0.0.1:5173',
     'http://localhost:3000'
   ]
+  
+  // Add frontend URL and its www/non-www variants
+  if (frontendUrl) {
+    allowedOrigins.push(...addWwwVariants(frontendUrl))
+  }
+  
+  // Add multiple frontend URLs and their variants
+  frontendUrls.forEach(url => {
+    allowedOrigins.push(...addWwwVariants(url))
+  })
   
   // Check exact match
   if (allowedOrigins.includes(normalizedOrigin)) {

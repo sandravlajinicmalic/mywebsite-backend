@@ -1,8 +1,6 @@
 import express, { type Request, type Response } from 'express'
 import OpenAI from 'openai'
-import dotenv from 'dotenv'
-
-dotenv.config()
+// dotenv.config() is handled in index.ts and config/supabase.ts
 
 const router = express.Router()
 
