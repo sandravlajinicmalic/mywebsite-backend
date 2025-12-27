@@ -1,5 +1,5 @@
 import { type Request, type Response, type NextFunction } from 'express'
-import jwt from 'jsonwebtoken'
+import jwt, { type VerifyErrors, type JwtPayload } from 'jsonwebtoken'
 
 export interface AuthRequest extends Request {
   user?: {
@@ -24,7 +24,7 @@ export const authenticateToken = (
   jwt.verify(
     token,
     process.env.JWT_SECRET || 'your-secret-key-change-in-production',
-    (err, user) => {
+    (err: VerifyErrors | null, user: string | JwtPayload | undefined) => {
       if (err) {
         // Return 401 for expired tokens, 403 for invalid tokens
         if (err.name === 'TokenExpiredError') {

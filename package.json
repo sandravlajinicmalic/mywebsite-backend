@@ -8,7 +8,7 @@
     "npm": ">=9.0.0"
   },
   "scripts": {
-    "build": "echo '=== Starting TypeScript compilation ===' && echo 'TypeScript version:' && tsc --version && echo 'Running tsc...' && tsc --listEmittedFiles 2>&1 || (echo 'TypeScript compilation had errors (check above)' && exit 1) && echo '=== Compilation completed ===' && echo 'Checking dist folder...' && ls -la dist/ 2>&1 && echo 'Checking for dist/index.js...' && test -f dist/index.js && echo '✓ dist/index.js exists' || (echo '✗ ERROR: dist/index.js not found after compilation!' && exit 1)",
+    "build": "echo '=== Starting TypeScript compilation ===' && tsc --version && echo 'Running tsc...' && tsc 2>&1; if [ -f dist/index.js ]; then echo '✓ SUCCESS: dist/index.js generated'; exit 0; else echo '✗ ERROR: dist/index.js not found!'; exit 1; fi",
     "postinstall": "if [ ! -f dist/index.js ]; then echo 'dist/index.js not found, running build...' && npm run build || exit 1; else echo 'dist/index.js exists, skipping build'; fi",
     "postbuild": "test -f dist/index.js || (echo 'ERROR: dist/index.js not found after build!' && exit 1)",
     "deploy": "npm run build && eb deploy",
@@ -23,6 +23,10 @@
   "description": "Backend server za mywebsite sa Express, Supabase i Socket.io",
   "dependencies": {
     "@supabase/supabase-js": "^2.80.0",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.5",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/node": "^24.10.0",
     "@types/nodemailer": "^7.0.3",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
@@ -30,14 +34,10 @@
     "jsonwebtoken": "^9.0.2",
     "nodemailer": "^7.0.10",
     "openai": "^6.8.1",
-    "socket.io": "^4.8.1"
+    "socket.io": "^4.8.1",
+    "typescript": "^5.9.3"
   },
   "devDependencies": {
-    "@types/cors": "^2.8.19",
-    "@types/express": "^5.0.5",
-    "@types/jsonwebtoken": "^9.0.10",
-    "@types/node": "^24.10.0",
-    "tsx": "^4.20.6",
-    "typescript": "^5.9.3"
+    "tsx": "^4.20.6"
   }
 }

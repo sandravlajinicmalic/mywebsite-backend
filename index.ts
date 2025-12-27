@@ -1,4 +1,4 @@
-import express, { type Express, type Request, type Response } from 'express'
+import express, { type Express, type Request, type Response, type NextFunction } from 'express'
 import cors from 'cors'
 import dotenv from 'dotenv'
 import { createServer, type Server as HttpServer } from 'http'
@@ -56,12 +56,7 @@ const isOriginAllowed = (origin: string | undefined): boolean => {
   if (normalizedOrigin.includes('.amplifyapp.com')) {
     return true
   }
-  
-  // Allow meow-crafts.com domains (with or without www, http or https)
-  if (normalizedOrigin.includes('meow-crafts.com')) {
-    return true
-  }
-  
+    
   // Only log blocked origins (not allowed ones)
   console.log(`❌ CORS blocked origin: ${normalizedOrigin}`)
   console.log(`   Allowed origins: ${allowedOrigins.join(', ')}`)
@@ -107,7 +102,7 @@ app.use(cors({
 }))
 
 // Log all incoming requests
-app.use((req, _res, next) => {
+app.use((req: Request, _res: Response, next: NextFunction) => {
   console.log(`📥 ${req.method} ${req.path} - Origin: ${req.headers.origin || 'none'}`)
   next()
 })
